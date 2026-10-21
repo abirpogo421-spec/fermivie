@@ -1,0 +1,7 @@
+# your library (papers, marks, notes) stays on your computer, never in the repo
+library/*
+!library/README.txt
+__pycache__/
+*.pyc
+.DS_Store
+server.log

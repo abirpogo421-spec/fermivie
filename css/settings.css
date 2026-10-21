@@ -1,0 +1,63 @@
+/* Settings tab (CONTRACT.md §10.3). Plain desktop look: section list on the left, controls on the right. */
+.st { flex: 1; min-height: 0; display: flex; background: var(--bg); }
+.st-nav { width: 210px; flex: none; display: flex; flex-direction: column; gap: 1px; padding: 10px 8px; background: var(--bg-side); border-right: 1px solid var(--line); overflow-y: auto; }
+.st-nav__item { display: flex; align-items: center; height: var(--row-h); padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: var(--text); text-align: left; white-space: nowrap; }
+.st-nav__item:hover { background: var(--hover); }
+.st-nav__item[aria-current="true"] { background: var(--sel-weak); }
+.st-nav:focus-within .st-nav__item[aria-current="true"] { background: var(--sel); color: var(--sel-text); }
+.st-nav__item:focus-visible { outline: none; }
+
+.st-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.st-head { flex: none; display: flex; align-items: baseline; gap: 12px; padding: 18px 28px 10px; border-bottom: 1px solid var(--line-soft); }
+.st-title { margin: 0; font-size: 15px; font-weight: 600; }
+.st-status { font-size: 12px; color: var(--text-3); }
+.st-status.is-error { color: var(--danger); }
+.st-body { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 28px 40px; }
+
+.st-row { max-width: 780px; display: grid; grid-template-columns: 180px minmax(0, 520px); gap: 4px 20px; padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+.st-row:last-child { border-bottom: 0; }
+.st-row__label { padding-top: 3px; text-align: right; color: var(--text-2); font-weight: 500; }
+.st-row__ctl { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.st-hint { font-size: 12px; color: var(--text-3); line-height: 1.45; max-width: 460px; }
+.st-hint--choice { margin: -3px 0 2px 22px; }
+.st-plain { padding-top: 3px; color: var(--text); }
+.st-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.st-kbd { font: 12px var(--mono); color: var(--text-3); }
+
+.st-radios, .st-checkwrap { display: flex; flex-direction: column; gap: 6px; }
+.st-choice { display: flex; align-items: center; gap: 8px; min-height: 20px; }
+.st-choice input { margin: 0; accent-color: var(--accent); }
+.st-select { min-width: 160px; }
+
+.st-list { width: min(420px, 100%); display: flex; flex-direction: column; gap: 6px; }
+.st-list__rows { border: 1px solid var(--line); border-radius: 4px; background: var(--bg-input); }
+.st-list__row { display: flex; align-items: center; gap: 8px; height: var(--row-h); padding: 0 2px 0 8px; border-bottom: 1px solid var(--line-soft); }
+.st-list__row:last-child { border-bottom: 0; }
+.st-list__row:nth-child(even) { background: var(--row-alt); }
+.st-list__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-list__note { font-size: 12px; color: var(--warn); }
+.st-list__x { width: 22px; height: 20px; color: var(--text-3); }
+.st-list__x .ic { width: 13px; height: 13px; }
+.st-list__empty { padding: 3px 8px; color: var(--text-3); }
+.st-list__add { display: flex; gap: 6px; }
+.st-list__input { flex: 1; min-width: 0; }
+.st-list__err { font-size: 12px; color: var(--danger); }
+
+.st-types { width: min(520px, 100%); display: flex; flex-direction: column; margin-bottom: 4px; }
+.st-type { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line-soft); }
+.st-type:last-child { border-bottom: 0; }
+.st-type .sq { align-self: center; }
+.st-type__name { flex: none; width: 90px; }
+.st-type__purpose { min-width: 0; font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.st-path { font: 12px var(--mono); color: var(--text); background: var(--bg-sunken); border: 1px solid var(--line-soft); border-radius: 4px; padding: 2px 6px; max-width: 100%; overflow-wrap: anywhere; }
+.st-keys { padding-top: 6px; max-width: 640px; }
+.st-keys .keys { max-height: none; overflow: visible; margin-top: 0; }
+
+@media (max-width: 760px) {
+  .st-nav { width: 160px; }
+  .st-row { grid-template-columns: minmax(0, 1fr); }
+  .st-row__label { text-align: left; padding-top: 0; }
+  .st-head, .st-body { padding-left: 18px; padding-right: 18px; }
+}
+.st-path { width: 380px; max-width: 100%; font-family: var(--mono); font-size: 12px; }

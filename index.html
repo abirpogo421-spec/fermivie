@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var s=window.__PM_SETTINGS__||JSON.parse(localStorage.getItem('pm2:settings')||'null')||{},d=document.documentElement;if(s.theme==='light'||s.theme==='dark')d.dataset.theme=s.theme;d.dataset.density=s.density==='compact'?'compact':'comfortable';d.dataset.tabs=s.tabs==='vertical'?'vertical':'horizontal';}catch(e){}</script>
+<title>Paper Marker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='3' width='20' height='26' rx='2' fill='%23ffffff' stroke='%23555' stroke-width='2'/%3E%3Crect x='10' y='10' width='12' height='4' fill='%23f2b705'/%3E%3Cpath d='M10 18h12M10 22h8' stroke='%23999' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/base.css?v=7">
+<link rel="stylesheet" href="css/library.css?v=7">
+<link rel="stylesheet" href="css/reader.css?v=7">
+<link rel="stylesheet" href="css/palette.css?v=7">
+<link rel="stylesheet" href="css/settings.css?v=7">
+</head>
+<body>
+<div id="app">
+  <nav id="tabbar" class="tabbar" role="tablist" aria-label="Open tabs"></nav>
+  <section id="view-library" class="view" aria-label="Library" hidden></section>
+  <section id="view-reader" class="view" aria-label="Reader" hidden></section>
+  <section id="view-settings" class="view" aria-label="Settings" hidden></section>
+</div>
+<div id="dropzone" class="dropzone" hidden><div class="dropzone__box"><b>Drop PDFs to add them</b><span id="dropzoneScope"></span></div></div>
+<div id="overlay-root"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="vendor/pdf.min.js"></script>
+<script type="module" src="js/app.js?v=7"></script>
+</body>
+</html>

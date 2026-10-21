@@ -1,0 +1,8 @@
+Paper Marker includes, unmodified, in vendor/:
+
+- PDF.js 3.11.174 (vendor/pdf.min.js, vendor/pdf.worker.min.js, vendor/cmaps/, vendor/standard_fonts/)
+  Copyright Mozilla Foundation. Apache License 2.0: see vendor/pdfjs-LICENSE
+  The standard fonts carry their own licences: vendor/standard_fonts/LICENSE_FOXIT and LICENSE_LIBERATION.
+  The character maps (vendor/cmaps/) are Adobe's: see vendor/cmaps/LICENSE.
+- KaTeX 0.16.11 (vendor/katex/), including its fonts
+  Copyright Khan Academy and other contributors. MIT License: see vendor/katex/LICENSE
