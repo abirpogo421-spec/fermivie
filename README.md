@@ -4,12 +4,11 @@ A private library and PDF reader for research papers. It runs on your own comput
 You keep papers in projects, mark them up (questions, remarks, things to work through, highlights, citations, or
 kinds you define yourself), and find anything again with one search.
 
-Everything stays on your computer. There is no account, no cloud and no tracking. It goes online only to look
-papers up: when you add one by link, ID, DOI or title, when you drop in a PDF (it looks up the DOI, arXiv ID or
+Everything stays on your computer and there is no account, no cloud and no tracking. It goes online only to look papers up: when you add one by link, ID, DOI or title, when you drop in a PDF (it looks up the DOI, arXiv ID or
 title it finds inside), and when you use **Fetch metadata** or **Get journal PDF**. Those lookups go to arXiv,
 Crossref, OpenAlex and the publisher's site.
 
-This copy is a blank starting point: no papers, no projects, the default mark types and default settings.
+This copy is a blank starting point with no papers, no projects, the default mark types and default settings.
 
 ---
 
