@@ -1126,28 +1126,39 @@ export class Library {
     }
   }
 
+  /** Library._fold: lower case without accents or compatibility forms (á -> a, ₂ -> 2), for search. */
+  static fold(s) { return String(s).normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase(); }
+  static words(q) { return Library.fold(q).split(/[\s\-‐-―/,;]+/u).filter(Boolean); }
+  /** Library._match: [code point index, length] for the snippet when every word occurs in text, else [-1, 0]. */
+  static match(text, words) {
+    const f = Library.fold(text);
+    if (!words.every((w) => f.includes(w))) return [-1, 0];
+    let u = py.lower(text).indexOf(words[0]);
+    let i = u >= 0 ? py.cpLen(py.lower(text).slice(0, u)) : Math.min(py.cpLen(f.slice(0, f.indexOf(words[0]))), Math.max(py.cpLen(text) - 1, 0));
+    return [i, py.cpLen(words[0])];
+  }
+
   async search(q) {
     q = asJson(q);
     q = py.strip(py.truthy(q) ? q : "");
-    if (!q) return [];
-    const ql = py.lower(q);
-    const qn = py.cpLen(q);
+    const words = Library.words(q);
+    if (!words.length) return [];
     const lib = await this.load();
     const hits = [];
     for (const key of keysOf(lib.items)) {
       const it = lib.items[key];
       const abV = py.pg(it, "abstract");
       const ab = py.truthy(abV) ? abV : "";
-      let i = Library._find(ab, ql);
-      if (i >= 0) hits.push({ key, where: "abstract", snippet: Library.snip(ab, i, qn) });
+      let [i, n] = Library.match(ab, words);
+      if (i >= 0) hits.push({ key, where: "abstract", snippet: Library.snip(ab, i, n) });
       const np = `items/${key}/notes.md`;
       if (await this._exists(np)) {
         try {
           const bytes = await this.fs.readBytes(np);
           if (bytes !== null) {
             const txt = fromUtf8(bytes, { errors: "replace" });
-            i = Library._find(txt, ql);
-            if (i >= 0) hits.push({ key, where: "notes", snippet: Library.snip(txt, i, qn) });
+            [i, n] = Library.match(txt, words);
+            if (i >= 0) hits.push({ key, where: "notes", snippet: Library.snip(txt, i, n) });
           }
         } catch (e) {
           if (e?.name !== "FsError") throw e;
@@ -1163,20 +1174,16 @@ export class Library {
           continue;
         }
         if (!Array.isArray(marks)) continue;
-        // every matching mark is returned (no per-PDF cap): the palette's Marks & notes tab lists them all
+        // every matching mark is returned (no per-PDF cap). A mark matches when its note, suggested wording and
+        // quote together hold every word; the snippet comes from the first of those fields with the first word.
         for (const m of marks) {
           if (!py.isDict(m)) continue;
-          for (const fld of ["note", "suggest", "quote"]) {
-            const v = py.pg(m, fld);
-            if (typeof v === "string") {
-              i = Library._find(v, ql);
-              if (i >= 0) {
-                hits.push({ key, where: "marks", att: a.key, markId: py.pg(m, "id"), page: py.pg(m, "page"),
-                  type: py.pg(m, "type"), num: py.pg(m, "num"), snippet: Library.snip(v, i, qn) });
-                break;
-              }
-            }
-          }
+          const vals = ["note", "suggest", "quote"].map((fld) => py.pg(m, fld)).filter((v) => typeof v === "string");
+          if (!vals.length || Library.match(vals.join("\n"), words)[0] < 0) continue;
+          const v = vals.find((x) => Library.match(x, words.slice(0, 1))[0] >= 0) || vals[0];
+          [i, n] = Library.match(v, words.slice(0, 1));
+          hits.push({ key, where: "marks", att: a.key, markId: py.pg(m, "id"), page: py.pg(m, "page"),
+            type: py.pg(m, "type"), num: py.pg(m, "num"), snippet: Library.snip(v, Math.max(i, 0), n) });
           if (hits.length >= SEARCH_MAX_HITS) return hits;
         }
       }

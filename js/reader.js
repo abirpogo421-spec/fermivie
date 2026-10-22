@@ -1885,7 +1885,7 @@ export function mountReader(root, ctx) {
     { id: "reader.panel", title: "Show / hide marks and notes", section: "Reader", keys: "N", when: here, run: () => setPanel($("panel").hidden) },
     { id: "reader.notes", title: "Write notes on this paper", section: "Reader", when: here, run: () => { setPanel(true); setTab("notes"); $("gnText").focus(); } },
     { id: "reader.journal", title: "Get journal PDF", section: "Reader", when: () => here() && journal.canGet(store.item(cur.key)), run: () => $("journalBtn").click() },
-    { id: "reader.cite", title: "Copy \\cite{…} for this paper", section: "Reader", when: here, run: () => { const c = "\\cite{" + cur.key + "}"; ui.copyText(c).then(() => ui.toast("Copied " + c)); } },
+    { id: "reader.cite", title: "Copy \\cite{…} for this paper", section: "Reader", when: here, run: () => { const c = "\\cite{" + cur.key + "}"; ui.copyText(c).then((ok) => ui.toast(ok ? "Copied " + c : "Couldn't copy.")); } },
     { id: "reader.reveal", title: "Show this paper in the library", section: "Reader", when: here, run: () => { const k = cur.key; ctx.openLibrary({ name: "library", filter: "all" }); setTimeout(() => store.emit("reveal", { keys: [k] }), 0); } },
   ]);
 

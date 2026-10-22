@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import unicodedata
 import shutil
 import threading
 import time
@@ -1258,26 +1259,47 @@ class Library:
         s = re.sub(r"\s+", " ", text[a:b]).strip()
         return ("…" if a > 0 else "") + s + ("…" if b < len(text) else "")
 
+    @staticmethod
+    def _fold(s):
+        """Lower case without accents or compatibility forms (á -> a, ₂ -> 2), for search."""
+        s = unicodedata.normalize("NFKD", s)
+        return "".join(c for c in s if not unicodedata.category(c).startswith("M")).lower()
+
+    @staticmethod
+    def _words(q):
+        return [w for w in re.split(r"[\s\-\u2010-\u2015/,;]+", Library._fold(q)) if w]
+
+    @staticmethod
+    def _match(text, words):
+        """Where to cut a snippet when every query word occurs in text (in any order), else -1."""
+        f = Library._fold(text)
+        if not all(w in f for w in words):
+            return -1, 0
+        i = text.lower().find(words[0])
+        if i < 0:
+            i = min(f.find(words[0]), max(len(text) - 1, 0))
+        return i, len(words[0])
+
     def search(self, q):
         q = (q or "").strip()
-        if not q:
+        words = self._words(q)
+        if not words:
             return []
-        ql = q.lower()
         lib = self.load()
         hits = []
         for key, it in lib["items"].items():
             ab = it.get("abstract") or ""
-            i = ab.lower().find(ql)
+            i, n = self._match(ab, words)
             if i >= 0:
-                hits.append({"key": key, "where": "abstract", "snippet": self._snip(ab, i, len(q))})
+                hits.append({"key": key, "where": "abstract", "snippet": self._snip(ab, i, n)})
             np = os.path.join(self.root, "items", key, "notes.md")
             if os.path.exists(np):
                 try:
                     with open(np, "rb") as f:
                         txt = f.read().decode("utf-8", "replace")
-                    i = txt.lower().find(ql)
+                    i, n = self._match(txt, words)
                     if i >= 0:
-                        hits.append({"key": key, "where": "notes", "snippet": self._snip(txt, i, len(q))})
+                        hits.append({"key": key, "where": "notes", "snippet": self._snip(txt, i, n)})
                 except OSError:
                     pass
             for a in it.get("attachments", []):
@@ -1291,18 +1313,20 @@ class Library:
                     continue
                 if not isinstance(marks, list):
                     continue
-                # every matching mark is returned (no per-PDF cap): the palette's Marks & notes tab lists them all
+                # every matching mark is returned (no per-PDF cap): the palette's Marks & notes tab lists them all.
+                # A mark matches when its note, suggested wording and quote together hold every word; the
+                # snippet comes from the first of those fields that has the first word.
                 for m in marks:
                     if not isinstance(m, dict):
                         continue
-                    for fld in ("note", "suggest", "quote"):
-                        v = m.get(fld)
-                        if isinstance(v, str):
-                            i = v.lower().find(ql)
-                            if i >= 0:
-                                hits.append({"key": key, "where": "marks", "att": a["key"], "markId": m.get("id"), "page": m.get("page"), "type": m.get("type"),
-                                             "num": m.get("num"), "snippet": self._snip(v, i, len(q))})
-                                break
+                    vals = [m.get(fld) for fld in ("note", "suggest", "quote")]
+                    vals = [v for v in vals if isinstance(v, str)]
+                    if not vals or self._match("\n".join(vals), words)[0] < 0:
+                        continue
+                    v = next((v for v in vals if self._match(v, words[:1])[0] >= 0), vals[0])
+                    i, n = self._match(v, words[:1])
+                    hits.append({"key": key, "where": "marks", "att": a["key"], "markId": m.get("id"), "page": m.get("page"), "type": m.get("type"),
+                                 "num": m.get("num"), "snippet": self._snip(v, max(i, 0), n)})
                     if len(hits) >= SEARCH_MAX_HITS:
                         return hits
             if len(hits) >= SEARCH_MAX_HITS:

@@ -339,7 +339,7 @@ function sectionAbout() {
   for (const it of items) pdfs += (it.attachments || []).length;
   for (const s of Object.values(store.stats || {})) marks += ((s && s.marks) || {}).total || 0;
   const loc = a.library || "library/";
-  const copy = h("button", { class: "btn btn--small", onclick: async () => { await ui.copyText(loc); ui.toast("Copied the library location."); } }, "Copy");
+  const copy = h("button", { class: "btn btn--small", onclick: async () => { ui.toast((await ui.copyText(loc)) ? "Copied the library location." : "Couldn't copy."); } }, "Copy");
   const n = (x, one, many) => `${x.toLocaleString()} ${x === 1 ? one : many}`;
   return [
     row("Library", h("div", { class: "st-inline" }, el("code", "st-path", loc), copy),

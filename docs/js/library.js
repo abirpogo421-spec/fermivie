@@ -1051,7 +1051,8 @@ export function mountLibrary(rootEl, ctx) {
     catch (e) { ui.toast(e.message, { error: true }); }
   }
   async function copyBib(keys) {
-    try { const t = await api.bibtex({ keys }); await ui.copyText(typeof t === "string" ? t : (t.bibtex || "")); ui.toast("BibTeX copied."); }
+    const text = api.bibtex({ keys }).then((t) => (typeof t === "string" ? t : (t.bibtex || "")));
+    try { ui.toast((await ui.copyText(text)) ? "BibTeX copied." : "Couldn't copy to the clipboard. Click in the window and try again."); }
     catch (e) { ui.toast(e.message, { error: true }); }
   }
   // the papers shown in the list right now (view + search + tag filter), as a .bib file
@@ -1071,7 +1072,7 @@ export function mountLibrary(rootEl, ctx) {
     } catch (e) { ui.toast(e.message, { error: true }); }
   }
   async function copyCite(keys) {
-    await ui.copyText(keys.map((k) => ui.citation(store.item(k))).join("\n"));
+    if (!(await ui.copyText(keys.map((k) => ui.citation(store.item(k))).join("\n")))) { ui.toast("Couldn't copy to the clipboard. Click in the window and try again.", { error: true }); return; }
     ui.toast(keys.length === 1 ? "Citation copied." : "Citations copied.");
   }
   async function setRead(keys, read) {
@@ -1236,7 +1237,7 @@ export function mountLibrary(rootEl, ctx) {
       const m = new Map();
       for (const hit of j.hits || []) {
         if (!hit.key || !store.item(hit.key)) continue;
-        if (hit.where !== "notes" && hit.where !== "marks") continue;
+        if (hit.where !== "notes" && hit.where !== "marks" && hit.where !== "abstract") continue;
         if (!m.has(hit.key)) m.set(hit.key, new Set());
         m.get(hit.key).add(hit.where);
       }

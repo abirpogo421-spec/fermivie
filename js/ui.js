@@ -254,7 +254,17 @@ export function toast(msg, opts = {}) {
   toastT = setTimeout(() => (t.hidden = true), opts.ms || (opts.error ? 4500 : 2200));
 }
 
+// text may be a promise (e.g. BibTeX still being read): the clipboard write is started right away, inside the
+// click, so the browser still counts it as the user's action. Resolves true only when the text really was copied.
 export async function copyText(text) {
+  if (text && typeof text.then === "function") {
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      const blob = text.then((t) => new Blob([String(t)], { type: "text/plain" }));
+      try { await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]); return true; }
+      catch (_) { /* fall back below; an error from the text itself is rethrown there */ }
+    }
+    text = await text;
+  }
   try { await navigator.clipboard.writeText(text); return true; }
   catch (_) {
     const ta = el("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
