@@ -56,7 +56,7 @@ export function mountReader(root, ctx) {
     filter: "all", query: "", lastType: "question", draft: null, editing: null, confirmDel: null,
     renderGen: 0, tab: "marks",
   };
-  try { S.lastType = localStorage.getItem("pm2:lastType") || "question"; } catch (_) {}
+  try { S.lastType = localStorage.getItem(api.lsKey("pm2:lastType")) || "question"; } catch (_) {}
 
   /* ---------------------------------------------------------------- load */
   function setLoad(msg, err) {
@@ -86,7 +86,6 @@ export function mountReader(root, ctx) {
     if (!keepThumb) { try { P.page.cleanup(); } catch (_) {} }
     P.div = P.tl = P.lk = P.ov = P.fl = null; P.tlBuilt = false;
   }
-  const pdfSource = (key, att) => (api.pdfSrc ? api.pdfSrc(api.pdfUrl(key, att)) : api.pdfUrl(key, att));
 
   $("journalBtn").onclick = () => {
     if (!cur) return;
@@ -138,7 +137,7 @@ export function mountReader(root, ctx) {
     const id = S.doc;
     let D = docs.get(id);
     if (D) { docs.delete(id); docs.set(id, D); }            // most recently used
-    else { D = { task: pdfjsLib.getDocument(pdfSource(key, att)), pdf: null, pages: null }; docs.set(id, D); evictDocs(); }
+    else { D = { task: api.openPdf(key, att), pdf: null, pages: null }; docs.set(id, D); evictDocs(); }
     loadTask = D.task;
     $("pages").innerHTML = D.pages ? "" : '<div class="state" id="rd-loadState">Loading the paper…</div>';
     $("pageTot").textContent = "of –"; $("pageIn").value = "–";
@@ -564,7 +563,7 @@ export function mountReader(root, ctx) {
   $("pageIn").addEventListener("focus", (ev) => ev.target.select());
   $("pageIn").addEventListener("blur", () => { $("pageIn").value = currentPage(); });
 
-  const viewKey = () => "pm2:view:" + S.doc;
+  const viewKey = () => api.lsKey("pm2:view:" + S.doc);
   // Saved (debounced) as you scroll and zoom; flushed whenever the document changes or the reader goes
   // away, while the outgoing paper is still laid out, so the last position is never lost.
   let vT = null;
@@ -606,7 +605,7 @@ export function mountReader(root, ctx) {
   /* ---------------------------------------------------------------- marks storage
      Server copy first, with revisions: a save made on an old revision gets a 409 and is merged
      (local edits by id on top of the server's marks), never last-writer-wins. */
-  const lsKey = () => "pm2:marks:" + S.doc;
+  const lsKey = () => api.lsKey("pm2:marks:" + S.doc);
   let rev = 0, editGen = 0, dirtyIds = new Set(), deletedIds = new Set(), lsWarned = false;
   const stripCrops = (ms) => ms.map((m) => { const { cropData, ...r } = m; return r; });
   function writeLocal(dirty) {
@@ -1094,7 +1093,7 @@ export function mountReader(root, ctx) {
       if (!m.cropData && d.cropP) d.cropP.then((img) => { if (img && S.marks.includes(m) && !m.crop) { m.cropData = img; dirtyIds.add(m.id); scheduleSave(); } });
       toast(mt.get(d.type).name + " #" + num + " saved");
     }
-    S.lastType = d.type; try { localStorage.setItem("pm2:lastType", d.type); } catch (_) {}
+    S.lastType = d.type; try { localStorage.setItem(api.lsKey("pm2:lastType"), d.type); } catch (_) {}
     window.getSelection().removeAllRanges();
     closeComposer(); drawAllMarks(); renderMarksPanel(); scheduleSave();
   }

@@ -10,6 +10,22 @@ Crossref, OpenAlex and the publisher's site.
 
 This copy is a blank starting point with no papers, no projects, the default mark types and default settings.
 
+## Use it online
+
+Open **<https://abirpogo421-spec.github.io/paper-marker/>**. The whole app runs in your browser; nothing is
+installed and nothing is uploaded. Your library is kept in a folder you choose, in the same format as the
+downloadable version, so one folder works with both.
+
+| Browser | Where the library is kept |
+|---|---|
+| Chrome, Edge, Arc | A folder you choose (a new empty one, an existing library folder, or your profile folder). The app asks to reopen it on later visits. |
+| Safari, Firefox | The browser's own storage for the site. Use **Settings > Profile** to download a copy (.zip) now and then, and to load a profile folder or zip. |
+
+What's different online: papers are looked up through Crossref, OpenAlex, DataCite, Semantic Scholar, Europe PMC,
+INSPIRE and arXiv. Journal web pages that don't let other sites read them can't be pasted as links; paste the DOI
+or arXiv ID instead, or drop the PDF in. **Get journal PDF** opens the journal in a new tab; then choose your
+Downloads folder (Chrome, Edge, Arc) or the downloaded file. Git saving of the profile needs the downloadable version.
+
 ---
 
 ## 1. Set up (about 5 minutes, once)

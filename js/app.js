@@ -18,9 +18,9 @@ const LS_VT_W = "pm2:vtabs-w", LS_VT_MIN = "pm2:vtabs-min";
 // in sessionStorage, so it never overwrites the main window's tabs.
 const SOLO = new URLSearchParams(location.search).get("solo");
 const TABSTORE = (() => { try { return SOLO ? sessionStorage : localStorage; } catch (_) { return null; } })();
-// window.open copies the opener's sessionStorage into the new window, so a window opened from another
-// separate window would start with that window's tabs. Keep only what this window wrote itself.
-if (SOLO && TABSTORE) try { if (TABSTORE.getItem("pm2:solo") !== SOLO) { [LS_TABS, LS_ACTIVE, LS_ROUTE].forEach((k) => TABSTORE.removeItem(k)); TABSTORE.setItem("pm2:solo", SOLO); } } catch (_) {}
+// open tabs belong to one library: their keys go through api.lsKey (unchanged in server mode), so they
+// are read once the back end is known (loadTabState, at boot)
+const K = (name) => api.lsKey(name);
 let tabs = [];                 // [{key, att}] reader tabs (Library and Settings are fixed, always first)
 let active = "library";        // "library", "settings" or "key/att"
 let lastLibRoute = "#/library";
@@ -28,16 +28,23 @@ let lastSettingsRoute = "#/settings";
 const titles = new Map();      // "key/att" -> title set by the reader
 const tabHistory = [];         // activation order, for "close returns to previous tab"
 const closedTabs = [];         // for "Reopen closed tab"
-try {
-  tabs = JSON.parse((TABSTORE && TABSTORE.getItem(LS_TABS)) || "null") || null;
-  if (!tabs && SOLO) { const [k, a] = SOLO.split("/"); tabs = k && a ? [{ key: k, att: a }] : []; }
-  tabs = (tabs || []).filter((t) => t && t.key && t.att);
-  lastLibRoute = (TABSTORE && TABSTORE.getItem(LS_ROUTE)) || "#/library";
-} catch (_) {}
+let tabsLoaded = false;
+function loadTabState() {
+  // window.open copies the opener's sessionStorage into the new window, so a window opened from another
+  // separate window would start with that window's tabs. Keep only what this window wrote itself.
+  if (SOLO && TABSTORE) try { if (TABSTORE.getItem("pm2:solo") !== SOLO) { [LS_TABS, LS_ACTIVE, LS_ROUTE].forEach((k) => TABSTORE.removeItem(K(k))); TABSTORE.setItem("pm2:solo", SOLO); } } catch (_) {}
+  try {
+    tabs = JSON.parse((TABSTORE && TABSTORE.getItem(K(LS_TABS))) || "null") || null;
+    if (!tabs && SOLO) { const [k, a] = SOLO.split("/"); tabs = k && a ? [{ key: k, att: a }] : []; }
+    tabs = (tabs || []).filter((t) => t && t.key && t.att);
+    lastLibRoute = (TABSTORE && TABSTORE.getItem(K(LS_ROUTE))) || "#/library";
+  } catch (_) {}
+  tabsLoaded = true;
+}
 const tid = (t) => t.key + "/" + t.att;
 const isPaper = (id) => !!id && id !== "library" && id !== "settings";
 const readHash = (key, att) => "#/read/" + encodeURIComponent(key) + "/" + encodeURIComponent(att);
-const saveTabs = () => { try { TABSTORE.setItem(LS_TABS, JSON.stringify(tabs)); TABSTORE.setItem(LS_ACTIVE, active); TABSTORE.setItem(LS_ROUTE, lastLibRoute); } catch (_) {} };
+const saveTabs = () => { if (!tabsLoaded) return; try { TABSTORE.setItem(K(LS_TABS), JSON.stringify(tabs)); TABSTORE.setItem(K(LS_ACTIVE), active); TABSTORE.setItem(K(LS_ROUTE), lastLibRoute); } catch (_) {} };
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
 let vtMin = lsGet(LS_VT_MIN) === "1";
@@ -146,6 +153,11 @@ function goTab(id) {
 
 let routeHash = "";            // the hash the app is currently showing
 let routeSeq = 0;
+// Routes act only once the library is open (boot turns this on, then applies the address as it is then).
+// Before that there is nothing to route to: an address change while the browser version's setup screen is
+// up, or while the library is still loading, just waits, so no message comes from the empty app and the
+// address is not rewritten.
+let routing = false;
 function showView(name) {
   if (name !== "reader") { reader.hide(); $("view-reader").hidden = true; }
   if (name !== "library") { library.hide(); $("view-library").hidden = true; }
@@ -155,6 +167,7 @@ function showView(name) {
   v[0].show();
 }
 async function applyRoute() {
+  if (!routing) return;
   const r = parseHash(location.hash);
   const seq = ++routeSeq;
   // switching to another paper would drop a mark the user is still typing: ask first
@@ -252,7 +265,7 @@ function popupWindow(id, key, att) {
   const url = location.origin + location.pathname + "?solo=" + encodeURIComponent(id) + readHash(key, att);
   const w = Math.min(1280, screen.availWidth - 80), h = Math.min(900, screen.availHeight - 80);
   const win = window.open(url, "pm2-" + id.replace(/[^\w-]/g, "_"), `popup=yes,width=${w},height=${h},left=${(screen.availLeft || 0) + 60},top=${(screen.availTop || 0) + 40}`);
-  if (!win) ui.toast("The browser blocked the new window. Allow pop-ups for localhost.", { error: true });
+  if (!win) ui.toast(api.mode === "browser" ? "The browser blocked the new window. Allow pop-ups for this site." : "The browser blocked the new window. Allow pop-ups for localhost.", { error: true });
   return !!win;
 }
 async function openInNewWindow(id) {
@@ -558,6 +571,9 @@ document.addEventListener("keydown", (ev) => {
   const mod = ev.metaKey || ev.ctrlKey;
   const key = (ev.key || "").toLowerCase();
   const browserCmd = mod && !ev.altKey && (key === "p" || key === "s");   // print / save page: never the browser's
+  // no back end yet (the browser version is still finding the library; its setup screen guards keys
+  // itself while it is up): the app's shortcuts have nothing to act on
+  if (!api.mode) { if (browserCmd) ev.preventDefault(); return; }
   if (document.querySelector("#overlay-root .scrim")) {   // a modal dialog (or the palette) owns the keyboard
     if (browserCmd) ev.preventDefault();
     return;
@@ -761,6 +777,24 @@ function registerProjectCommands() {
 }
 
 /* ------------------------------------------------------------------ boot */
+function bootFailed(e) {
+  const v = $("view-library");
+  v.textContent = "";
+  const box = el("div", "empty", "Paper Marker couldn't open the library: " + (e && e.message ? e.message : e));
+  // the browser version: a way to another library from here (no back end means no Settings page), which
+  // forgets the remembered one and reloads to the setup screen, like Settings > About > Change Library…
+  if (api.mode !== "server") {
+    const b = ui.h("button", { class: "btn", type: "button" }, "Change Library…");
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      try { const S = await import("./web/setup.js"); await S.forgetLibrary(); } catch (err) { console.warn(err); }
+      location.reload();
+    });
+    const p = el("p"); p.append(b); box.append(p);
+  }
+  v.append(box);
+  v.hidden = false;
+}
 window.addEventListener("hashchange", applyRoute);
 store.on("item", ({ key }) => { if (tabs.some((t) => t.key === key)) renderTabs(); });
 store.on("library", () => {
@@ -776,16 +810,22 @@ applyShellSettings();          // from the local copy, before the server answers
 renderTabs();
 
 (async function boot() {
+  // the back end first (in the browser version this may show the setup screen and wait for the user)
+  try { await api.ready(); }
+  catch (e) { console.error(e); bootFailed(e); return; }
+  loadTabState();
+  renderTabs();
   await Promise.all([mountViews(), store.loadSettings()]);
   try { registerAppCommands(); } catch (e) { console.error(e); }
   try { await store.load(); }
   catch (e) { ui.toast(e.message, { error: true, ms: 10000 }); }
   if (!location.hash || location.hash === "#") {
-    let a = SOLO || "library"; try { a = (TABSTORE && TABSTORE.getItem(LS_ACTIVE)) || a; } catch (_) {}
+    let a = SOLO || "library"; try { a = (TABSTORE && TABSTORE.getItem(K(LS_ACTIVE))) || a; } catch (_) {}
     const t = tabs.find((x) => tid(x) === a);
     history.replaceState(null, "", t ? readHash(t.key, t.att) : a === "settings" ? "#/settings" : lastLibRoute);
   }
   renderTabs();
+  routing = true;
   applyRoute();
   // warm up the palette so the first ⌘K opens at once
   const idle = window.requestIdleCallback || ((f) => setTimeout(f, 300));

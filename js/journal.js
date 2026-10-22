@@ -5,6 +5,8 @@
 //    usual, nothing to sign into here). Once the user downloads it into one of those folders, it's picked
 //    up, added as "Published version" and made the default. Nothing in those folders is moved.
 //    With no folders to check, the journal's page still opens, but nothing is watched.
+// In the browser version the folders are ones the user granted (Settings > Library & import); with none,
+// a dialog offers to choose the Downloads folder (Chrome, Edge, Arc) or the downloaded PDF itself.
 import { api } from "./api.js";
 import { store } from "./store.js";
 import * as ui from "./ui.js";
@@ -37,6 +39,8 @@ export async function getJournalPdf(key, opts = {}) {
     if (win) { win.opener = null; win.location.href = j.url; } else window.open(j.url, "_blank", "noopener");
   } catch (e) { if (win) win.close(); ui.toast(e.message, { error: true }); return; }
   const w = dirs();
+  // the browser version can only read folders the user chose: ask for one, or for the PDF itself
+  if (api.mode === "browser" && !(w && w.length)) { askForPdf(key, since, opts); return; }
   if (w && !w.length) {
     ui.toast("Opened the journal's page. No folders are being checked for downloads, so attach the PDF yourself, or add a folder in Settings > Library & import.", { ms: 9000 });
     return;
@@ -68,4 +72,66 @@ function done(item, opts, msg) {
   store.setItem(item);
   ui.toast(msg + " Marks you made on another version stay with that version.", { ms: 6000 });
   if (opts.onFound) opts.onFound(item);
+}
+
+/* ---------------------------------------------------------------- browser version: no folder to watch */
+const { h } = ui;
+function askForPdf(key, since, opts) {
+  const folders = typeof window.showDirectoryPicker === "function";
+  dialog((d, close) => {
+    d.append(h("h2", null, "Add the journal PDF"),
+      h("p", null, folders
+        ? "Download the PDF from the journal's page. Choose your Downloads folder and it's added as soon as it arrives, or choose the PDF yourself."
+        : "Download the PDF from the journal's page, then choose it here."));
+    const pdfBtn = h("button", { class: "btn" + (folders ? "" : " btn--primary"), onclick: () => { close(); choosePdf(key, opts); } }, "Choose PDF…");
+    const acts = h("div", { class: "dialog__actions" }, h("button", { class: "btn", onclick: () => close() }, "Cancel"), pdfBtn);
+    if (folders) acts.append(h("button", { class: "btn btn--primary", onclick: () => { close(); chooseWatch(key, since, opts); } }, "Choose Downloads Folder…"));
+    d.append(acts);
+  });
+}
+// remember a Downloads folder (the back end shows the folder picker), then watch it like the local app does
+async function chooseWatch(key, since, opts) {
+  try {
+    const j = await api.profileAct("watchFolder", {});
+    if (j && j.cancelled) return;
+    await store.loadSettings();
+  } catch (e) { if (e.name !== "AbortError") ui.toast(e.message, { error: true }); return; }
+  const w = dirs() || [];
+  ui.toast(`Once the PDF is in ${w.length ? w.map(folderName).join(" or ") : "that folder"}, it'll be added here automatically.`, { ms: 9000 });
+  watch(key, since, opts);
+}
+// the downloaded PDF itself: added as "Published version" and made the default, like a found one
+async function choosePdf(key, opts) {
+  const file = await pickPdf();
+  if (!file) return;
+  if (watching.has(key)) watching.get(key)();
+  // attach_local_published's own step for this file (attachment key "published"), never a plain upload:
+  // an upload names the attachment after its label ("published-version", or "main" on a paper with none)
+  try { done((await api.attachPublishedFile(key, file)).item, opts, "Added the journal PDF and made it the default."); }
+  catch (e) { ui.toast(e.message, { error: true }); }
+}
+function pickPdf() {
+  return new Promise((resolve) => {
+    const inp = h("input", { type: "file", accept: ".pdf,application/pdf", hidden: true });
+    const fin = (v) => { inp.remove(); resolve(v); };
+    inp.addEventListener("change", () => fin((inp.files && inp.files[0]) || null));
+    inp.addEventListener("cancel", () => fin(null));
+    document.body.append(inp);
+    inp.click();
+  });
+}
+// a small modal with the shared .scrim / .dialog look (ui.confirmDialog has only two buttons)
+function dialog(build) {
+  const prev = document.activeElement;
+  const s = ui.el("div", "scrim");
+  const d = ui.el("div", "dialog"); d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
+  s.append(d);
+  const onKey = (ev) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); close(); } };
+  const close = () => { s.remove(); document.removeEventListener("keydown", onKey, true); if (prev && prev.focus) prev.focus(); };
+  document.addEventListener("keydown", onKey, true);
+  s.addEventListener("pointerdown", (ev) => { if (ev.target === s) close(); });
+  build(d, close);
+  document.getElementById("overlay-root").append(s);
+  const f = d.querySelector(".btn--primary") || d.querySelector("button");
+  if (f) f.focus();
 }

@@ -2,6 +2,7 @@
 // Same rules as the library's project view: papers never placed go to the first section when they
 // have marks, otherwise the last, oldest first.
 import { store } from "./store.js";
+import { api } from "./api.js";
 
 export const DEFAULT_SECTIONS = [{ id: "mark", name: "To mark" }, { id: "ref", name: "Reference" }];
 
@@ -27,11 +28,12 @@ export function projectOrder(pid) {
   return sections.map((x) => ({ ...x, items: by.get(x.id) }));
 }
 // the project to use as context for a paper: the one last open in the library if it holds the paper,
-// else the paper's first project
+// else the paper's first project. The route is the one js/app.js keeps (sessionStorage in a ?solo window),
+// under the same per-library key it writes (api.lsKey: unchanged in server mode).
 export function contextProject(key) {
   const it = store.item(key); if (!it) return null;
   let last = null;
-  try { const m = /#\/library\/project\/([^/]+)/.exec(sessionStorage.getItem("pm2:libroute") || localStorage.getItem("pm2:libroute") || ""); last = m && decodeURIComponent(m[1]); } catch (_) {}
+  try { const k = api.lsKey("pm2:libroute"); const m = /#\/library\/project\/([^/]+)/.exec(sessionStorage.getItem(k) || localStorage.getItem(k) || ""); last = m && decodeURIComponent(m[1]); } catch (_) {}
   const mine = (it.projects || []).filter((p) => store.project(p));
   if (last && mine.some((p) => store.projectTree(last).includes(p))) return last;
   return mine[0] || null;

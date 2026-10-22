@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob: data: https://arxiv.org https://export.arxiv.org https://api.crossref.org https://api.openalex.org https://api.datacite.org https://api.semanticscholar.org https://www.ebi.ac.uk https://inspirehep.net https://journals.aps.org; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--pm-settings-->
+<script src="js/boot.js?v=7"></script>
+<title>Paper Marker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='3' width='20' height='26' rx='2' fill='%23ffffff' stroke='%23555' stroke-width='2'/%3E%3Crect x='10' y='10' width='12' height='4' fill='%23f2b705'/%3E%3Cpath d='M10 18h12M10 22h8' stroke='%23999' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/base.css?v=7">
+<link rel="stylesheet" href="css/library.css?v=7">
+<link rel="stylesheet" href="css/reader.css?v=7">
+<link rel="stylesheet" href="css/palette.css?v=7">
+<link rel="stylesheet" href="css/settings.css?v=7">
+<link rel="stylesheet" href="css/web.css?v=7">
+</head>
+<body>
+<div id="app">
+  <nav id="tabbar" class="tabbar" role="tablist" aria-label="Open tabs"></nav>
+  <section id="view-library" class="view" aria-label="Library" hidden></section>
+  <section id="view-reader" class="view" aria-label="Reader" hidden></section>
+  <section id="view-settings" class="view" aria-label="Settings" hidden></section>
+</div>
+<div id="dropzone" class="dropzone" hidden><div class="dropzone__box"><b>Drop PDFs to add them</b><span id="dropzoneScope"></span></div></div>
+<div id="overlay-root"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="vendor/pdf.min.js"></script>
+<script type="module" src="js/app.js?v=7"></script>
+</body>
+</html>

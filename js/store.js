@@ -20,22 +20,40 @@ function deepMerge(base, patch) {
   for (const [k, v] of Object.entries(patch || {})) out[k] = isObj(v) && isObj(out[k]) ? deepMerge(out[k], v) : clone(v);
   return out;
 }
-const LS_SETTINGS = "pm2:settings";   // a local copy so the theme is right before the server answers
+/* The local copy of the settings, so the theme is right before the back end answers.
+   Settings belong to one library (its settings.json), so the copy does too: it is kept under
+   api.lsKey(LS_SETTINGS), which is "pm2:settings" itself in server mode (each server port is its own
+   origin, so nothing changes there) and "pm2:<libraryId>:settings" in the browser version, where every
+   library on the site shares one origin (WEB_CONTRACT §7). Only a theme cache is site-wide: in the browser
+   version LS_THEME holds the theme, density and tab layout of the library opened last, for js/boot.js's
+   first paint before any library is known. Nothing else of one library's settings ever reaches another. */
+const LS_SETTINGS = "pm2:settings";
+const LS_THEME = "pm2:settings";   // the same name js/boot.js reads; in the browser version only shellPart() goes there
+const SHELL_KEYS = ["theme", "density", "tabs"];
+const shellPart = (s) => (isObj(s) ? Object.fromEntries(SHELL_KEYS.filter((k) => k in s).map((k) => [k, s[k]])) : {});
+const lsJson = (k) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return isObj(v) ? v : null; } catch (_) { return null; } };
 // The server writes its saved settings into index.html (window.__PM_SETTINGS__) when it serves it; that
-// beats this origin's local copy, which is missing or stale on a new origin / browser or after a hand edit.
-const cachedSettings = () => {
-  if (window.__PM_SETTINGS__ && typeof window.__PM_SETTINGS__ === "object") return window.__PM_SETTINGS__;
-  try { return JSON.parse(localStorage.getItem(LS_SETTINGS) || "null"); } catch (_) { return null; }
+// beats the local copy, which is missing or stale on a new origin / browser or after a hand edit.
+const pageSettings = () => (window.__PM_SETTINGS__ && typeof window.__PM_SETTINGS__ === "object" ? window.__PM_SETTINGS__ : null);
+// the library isn't known yet (module load): the page's settings, else only the theme part of the local copy
+const firstSettings = () => pageSettings() || shellPart(lsJson(LS_THEME));
+// the back end is known: this library's own key ("" before that, and in the browser version without an id)
+const settingsKey = () => {
+  if (api.mode === "server") return api.lsKey(LS_SETTINGS);
+  if (api.mode !== "browser") return "";
+  const k = api.lsKey(LS_SETTINGS);
+  return k === LS_THEME ? "" : k;
 };
-const cacheSettings = (s) => { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); } catch (_) {} };
-async function settingsReq(method, body) {
-  let r;
-  try { r = await fetch("/api/settings", body ? { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { method }); }
-  catch (_) { throw new Error("Can't reach the Paper Marker server. Is it running?"); }
-  const j = await r.json().catch(() => ({ ok: false, error: `Bad response (${r.status})` }));
-  if (!r.ok || j.ok === false) throw new Error(j.error || `Server error ${r.status}`);
-  return j;
+const librarySettings = () => pageSettings() || (settingsKey() ? lsJson(settingsKey()) : null);
+function cacheSettings(s) {
+  const k = settingsKey();
+  try {
+    if (k) localStorage.setItem(k, JSON.stringify(s));
+    if (api.mode === "browser") localStorage.setItem(LS_THEME, JSON.stringify(shellPart(s)));
+  } catch (_) {}
 }
+// GET / PUT the settings through the back end (the server's /api/settings, or the browser back end)
+const settingsReq = (method, body) => (method === "GET" ? api.getSettings() : api.putSettings(body));
 let settingsQueue = Promise.resolve();
 // Settings > Library & import > New project sections: a new project starts with these sections.
 // The default pair is what the library shows for a project without sections, so nothing is stored then.
@@ -58,10 +76,13 @@ export const store = {
   lib: { items: {}, projects: [] },
   stats: {},
   loaded: false,
-  settings: deepMerge(SETTINGS_DEFAULTS, cachedSettings() || {}),
+  settings: deepMerge(SETTINGS_DEFAULTS, firstSettings()),
   about: null,      // {library, version, port} from GET /api/settings
 
   async loadSettings() {
+    // until the back end answers (or if it can't): this library's own last copy
+    const local = librarySettings();
+    if (local) store.settings = deepMerge(SETTINGS_DEFAULTS, local);
     try {
       const j = await settingsReq("GET");
       store.settings = deepMerge(SETTINGS_DEFAULTS, j.settings || {});
@@ -195,9 +216,12 @@ export const store = {
   async importFile(file, project) { const j = await api.importFile(file, project); await store.load(); store.emit("imported", j); return j; },
 };
 
-// a settings change made in another window (e.g. a paper opened in its own window) applies here too
+// a settings change made in another window of this library (e.g. a paper opened in its own window) applies
+// here too. Another library's never does: in the browser version another tab of the site may have another
+// library open, and its changes arrive under its own key or as the site-wide theme cache (both ignored).
 window.addEventListener("storage", (ev) => {
-  if (ev.key !== LS_SETTINGS || !ev.newValue) return;
+  const k = settingsKey();
+  if (!k || ev.key !== k || !ev.newValue) return;
   try { store.settings = deepMerge(SETTINGS_DEFAULTS, JSON.parse(ev.newValue)); } catch (_) { return; }
   store.emit("settings", { settings: store.settings, patch: null, remote: true });
 });

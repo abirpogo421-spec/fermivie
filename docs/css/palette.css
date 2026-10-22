@@ -1,0 +1,67 @@
+/* ⌘K palette (js/palette.js). Plain desktop look: see CONTRACT.md §6. */
+.pal-scrim { place-items: start center; padding-top: 11vh; background: rgba(0, 0, 0, .2); }
+.pal {
+  width: min(660px, calc(100vw - 32px));
+  max-height: min(600px, calc(100vh - 11vh - 24px));
+  display: flex; flex-direction: column;
+  border-radius: 8px; background: var(--bg); box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+.pal-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 6px 14px; }
+.pal-title { flex: 1; margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.pal-x { width: 24px; height: 22px; }
+.pal-x .ic { width: 14px; height: 14px; }
+.pal-search { margin: 0 12px; }
+.pal-search .ic { left: 9px; width: 15px; height: 15px; }
+.pal-input.input { height: 32px; padding-left: 30px; font-size: 14px; }
+.pal-filters { align-self: flex-start; margin: 10px 12px 8px; height: 24px; }
+.pal-filters .segctl__btn { font-size: 12px; padding: 0 10px; }
+
+.pal-list {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 6px 6px; border-top: 1px solid var(--line-soft);
+}
+.pal-head2 { padding: 10px 8px 3px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.pal-line { padding: 22px 12px; text-align: center; color: var(--text-2); }
+
+.pal-row {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px; padding: 4px 10px 4px 8px;
+  border-radius: 5px; color: var(--text);
+}
+.pal-row--one { min-height: 28px; }
+.pal-row__ic { width: 16px; flex: none; display: grid; place-items: center; color: var(--text-3); }
+.pal-row__ic .ic { width: 15px; height: 15px; }
+/* mark type: a 9px square in the type colour before its name (CONTRACT §6) */
+.pal-sq { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 1px; background: var(--mt); vertical-align: -0.5px; }
+.pal-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pal-row__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal-row__title b { font-weight: 600; }
+.pal-row__title--snip { color: var(--text); }
+.pal-row__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.pal-type { color: var(--mt-ink); font-weight: 600; }
+.pal-row__hint { line-height: 16px; flex: none; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.pal-row__kbd { flex: none; min-width: 22px; line-height: 16px; text-align: right; font-size: 11.5px; }
+
+.pal-row.is-sel { background: var(--sel); color: var(--sel-text); }
+.pal-row.is-sel .pal-row__title--snip,
+.pal-row.is-sel .pal-row__ic { color: inherit; }
+.pal-row.is-sel .pal-row__meta,
+.pal-row.is-sel .pal-row__hint,
+.pal-row.is-sel .pal-row__kbd { color: inherit; opacity: .82; }
+.pal-row.is-sel .pal-type { color: inherit; }
+.pal-row.is-sel .pal-sq { box-shadow: 0 0 0 1px var(--sel-text); }
+
+.pal-foot {
+  flex: none; display: flex; flex-wrap: wrap; gap: 4px 16px;
+  padding: 7px 14px; border-top: 1px solid var(--line-soft);
+  background: var(--bg-side); font-size: 12px; color: var(--text-3);
+}
+.pal-foot__hint { white-space: nowrap; }
+.pal-foot kbd { font-size: 11.5px; color: var(--text-2); }
+
+@media (max-width: 560px) {
+  .pal-scrim { padding-top: 16px; }
+  .pal-filters { max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: none; }
+  .pal-row__hint { display: none; }
+}

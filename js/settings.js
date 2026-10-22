@@ -209,7 +209,7 @@ function sectionMarking(S, save, ctx) {
       h("button", { class: "btn", onclick: () => ctx.openSettings && ctx.openSettings("marktypes") }, "Show Mark Types"))),
   ];
 }
-function sectionLibrary(S, save) {
+function sectionLibrary(S, save, ctx, rerender) {
   const L = S.library || {};
   const home = (store.about && store.about.home) || "~";
   const win = /^[A-Za-z]:|\\/.test(home);   // Windows paths: backslashes, any case
@@ -225,7 +225,7 @@ function sectionLibrary(S, save) {
     row("No free PDF", check("Use the arXiv preprint when the journal's PDF can't be downloaded", L.preprintFallback !== false,
       (v) => save({ library: { preprintFallback: v } }),
       "Paywalled journal links still get a PDF: the paper's arXiv version is found by its title and authors and added instead.")),
-    row("Folders to check", listEditor(L.watchDirs || [], {
+    api.mode === "browser" ? watchFoldersWeb(rerender) : row("Folders to check", listEditor(L.watchDirs || [], {
       placeholder: "~/Downloads",
       note: (d) => (known && !watching.has(expand(d)) ? "Not found" : ""),
       validate: (d) => (/^(?:[/~]|[A-Za-z]:[\\/]|\\\\)/.test(d) ? "" : "Use a full folder path, such as ~/Downloads, /Volumes/Data/Papers or C:\\Users\\you\\Downloads."),
@@ -271,7 +271,8 @@ export async function loadProfile(path, after) {
   let pv;
   try { pv = (await api.profileAct("preview", { path })).preview; } catch (e) { ui.toast(e.message, { error: true }); return false; }
   const ok = await ui.confirmDialog({ title: "Load this profile?",
-    message: `${pv.papers} papers, ${pv.projects} projects and ${pv.marks} marks, saved ${when(pv.savedAt)}. Papers you already have stay as they are; the rest are added. This folder then becomes your profile folder.`,
+    message: `${pv.papers} papers, ${pv.projects} projects and ${pv.marks} marks, saved ${when(pv.savedAt)}. Papers you already have stay as they are; the rest are added.` +
+      (api.mode === "browser" ? "" : " This folder then becomes your profile folder."),
     ok: "Load profile" });
   if (!ok) return false;
   ui.toast("Loading your profile…", { ms: 120000 });
@@ -279,13 +280,15 @@ export async function loadProfile(path, after) {
     const j = await api.profileAct("load", { path });
     const s = j.summary;
     await store.load(); await store.loadSettings?.();
-    ui.toast(`Loaded ${s.added} papers, ${s.projects} projects, ${s.marks} marks` + (s.skipped ? ` (${s.skipped} were already here)` : "") +
-      (s.missingPdfs.length ? `. ${s.missingPdfs.length} PDFs couldn't be restored: ${s.missingPdfs.slice(0, 3).join("; ")}` : "."), { ms: 9000 });
+    ui.toast(loadedText(s), { ms: 9000 });
     after && after();
     return true;
   } catch (e) { ui.toast(e.message, { error: true, ms: 9000 }); return false; }
 }
+const loadedText = (s) => `Loaded ${s.added} papers, ${s.projects} projects, ${s.marks} marks` + (s.skipped ? ` (${s.skipped} were already here)` : "") +
+  ((s.missingPdfs || []).length ? `. ${s.missingPdfs.length} PDFs couldn't be restored: ${s.missingPdfs.slice(0, 3).join("; ")}` : ".");
 function sectionProfile(S, save, ctx, rerender) {
+  if (api.mode === "browser") return sectionProfileWeb(S, save, ctx, rerender);
   const box = el("div", "st-profile");
   box.append(hint("Your profile is a folder that holds your whole library: papers, marks, notes, projects, settings and copies of the PDFs. Paper Marker saves into it after every change. On another computer, or a fresh copy of Paper Marker, load the folder and everything comes back. Put it on a synced drive, a USB stick, or in a private GitHub repository."));
   const slot = el("div"); box.append(slot);
@@ -329,6 +332,7 @@ function sectionProfile(S, save, ctx, rerender) {
 }
 
 function sectionAbout() {
+  if (api.mode === "browser") return sectionAboutWeb();
   const a = store.about || {};
   const items = store.items(), trashed = store.items({ trashed: true });
   let pdfs = 0, marks = 0;
@@ -343,6 +347,136 @@ function sectionAbout() {
     row("Contents", el("div", "st-plain num", [n(items.length, "paper", "papers"), n(pdfs, "PDF", "PDFs"), n(marks, "mark", "marks"),
       n(store.lib.projects.length, "project", "projects"), n(trashed.length, "paper in the Trash", "papers in the Trash")].join(" · "))),
     row("Version", el("div", "st-plain", "Paper Marker " + (a.version || "2") + (a.port ? ` · localhost:${a.port}` : ""))),
+  ];
+}
+
+/* ---------------------------------------------------------------- the browser version (WEB_CONTRACT §6.5, §8)
+   Folders are handles the browser granted, not paths; git needs the downloadable version. */
+const canOpenFolders = () => typeof window.showDirectoryPicker === "function";
+const isCancel = (e) => e && (e.name === "AbortError" || (e.payload && e.payload.cancelled));
+// Library & import > Folders to check: the folders this browser was allowed to read
+function watchFoldersWeb(rerender) {
+  const names = ((store.about || {}).watching) || [];
+  const act = async (name, body) => {
+    try { const j = await api.profileAct(name, body); if (!(j && j.cancelled)) await store.loadSettings(); }
+    catch (e) { if (!isCancel(e)) ui.toast(e.message, { error: true }); }
+    rerender();
+  };
+  const box = el("div", "st-list");
+  const rows = el("div", "st-list__rows");
+  names.forEach((name, index) => {
+    const r = el("div", "st-list__row");
+    r.append(el("span", "st-list__text", name),
+      h("button", { class: "btn btn--small", "aria-label": "Remove " + name, onclick: () => act("forgetWatch", { index, name }) }, "Remove"));
+    rows.append(r);
+  });
+  if (!names.length) rows.append(el("div", "st-list__empty", "None."));
+  box.append(rows);
+  if (!canOpenFolders()) return row("Folders to check", box, hint("This browser can't open folders. After Get journal PDF, choose the downloaded PDF instead."));
+  box.append(h("div", { class: "st-list__add" }, h("button", { class: "btn btn--small", onclick: () => act("watchFolder", {}) }, "Choose Folder…")));
+  return row("Folders to check", box, hint("Journal PDFs you download into these folders are added to the matching paper. Files are only read, never moved."));
+}
+
+// Profile: a connected folder (Chrome, Edge, Arc), a zip download, and loading either back
+function sectionProfileWeb(S, save, ctx, rerender) {
+  const box = el("div", "st-profile");
+  box.append(hint("Your profile holds your whole library: papers, marks, notes, projects, settings and copies of the PDFs. Load it in another browser, on another computer, or in the downloadable version of Paper Marker, and everything comes back."));
+  const slot = el("div"); box.append(slot);
+  const refresh = async () => { try { draw((await api.profile()).profile || {}); } catch (e) { slot.textContent = ""; slot.append(hint("Couldn't read the profile status: " + e.message)); } };
+  const connect = async (folder, replace = false) => {
+    try { draw((await api.profileAct("connect", { folder, replace })).profile); ui.toast("Profile folder connected and saved."); }
+    catch (e) {
+      if (e.status === 409 && e.payload && e.payload.preview) {
+        if (await loadProfile(folder, () => refresh())) return;
+        if (await ui.confirmDialog({ title: "Replace that profile?", message: "The folder already has a profile. Replace it with this library? The profile that's there now will be overwritten.", ok: "Replace", danger: true })) connect(folder, true);
+      } else ui.toast(e.message, { error: true, ms: 8000 });
+    }
+  };
+  const exportZip = async () => {
+    ui.toast("Making the zip…", { ms: 120000 });
+    try { await api.profileAct("exportZip"); ui.toast("Downloaded the profile zip."); }
+    catch (e) { ui.toast(e.message, { error: true, ms: 8000 }); }
+  };
+  const importZip = async () => {
+    const file = await pickFile(".zip,application/zip");
+    if (!file) return;
+    ui.toast("Loading " + file.name + "…", { ms: 120000 });
+    try {
+      const j = await api.profileAct("importZip", { file });
+      await store.load(); await store.loadSettings();
+      ui.toast(j && j.summary ? loadedText(j.summary) : "Loaded " + file.name + ".", { ms: 9000 });
+      refresh();
+    } catch (e) { ui.toast(e.message, { error: true, ms: 9000 }); }
+  };
+  const loadMenu = (anchor) => ui.menu([
+    { label: "Profile Folder…", action: async () => { const f = await chooseFolder("Choose the profile folder to load"); if (f) loadProfile(f, () => refresh()); } },
+    { label: "Zip File…", action: importZip },
+  ], anchor);
+  const draw = (P) => {
+    slot.textContent = "";
+    const name = P.name || (/^handle:/.test(P.folder || "") ? "" : P.folder || "");
+    const folderRow = canOpenFolders()
+      ? (() => {
+        const actions = h("div", { class: "st-inline" },
+          h("button", { class: "btn", onclick: async () => { const f = await chooseFolder("Choose a folder for your Paper Marker profile"); if (f) connect(f); } }, P.folder ? "Change…" : "Choose Folder…"));
+        if (P.folder) actions.append(
+          h("button", { class: "btn", onclick: async () => { try { draw((await api.profileAct("save")).profile); ui.toast("Profile saved."); } catch (e) { ui.toast(e.message, { error: true }); } } }, "Save Now"),
+          h("button", { class: "btn", onclick: async () => { try { draw((await api.profileAct("disconnect")).profile); } catch (e) { ui.toast(e.message, { error: true }); } } }, "Disconnect"));
+        const state = P.folder
+          ? hint((P.saving ? "Saving… " : "") + "Last saved " + when(P.lastSaved) + (P.lastError ? ". Problem: " + P.lastError : "") + (name ? "  ·  " + name : ""))
+          : hint("Not connected yet. Once connected, Paper Marker saves into the folder after every change.");
+        return row("Profile folder", actions, state);
+      })()
+      : row("Profile folder", hint("This browser can't save into folders. Use Download Profile instead."));
+    const loadBtn = h("button", { class: "btn" }, "Load Profile or Zip…");
+    loadBtn.addEventListener("click", () => loadMenu(loadBtn));
+    slot.append(
+      folderRow,
+      row("Download", h("div", { class: "st-inline" }, h("button", { class: "btn", onclick: exportZip }, "Download Profile (.zip)")),
+        hint("The whole profile in one zip file. Load Profile or Zip brings it back here or in another browser.")),
+      row("PDFs", check("Keep a copy of every PDF in the profile", P.includePdfs !== false, async (v) => { await save({ profile: { includePdfs: v } }); refresh(); },
+        "Makes the profile complete on its own. Without it, PDFs are downloaded again from where they came from when you load it.")),
+      row("Load a profile", h("div", { class: "st-inline" }, loadBtn),
+        hint("Adds the papers, marks, notes and projects from a profile folder or zip that this library doesn't have. Nothing you already have is changed.")),
+      row("Git / GitHub", hint("Committing each save with git needs the downloadable version of Paper Marker, which runs on your computer.")),
+    );
+  };
+  refresh();
+  return [box];
+}
+// <input type=file> for one file; null when cancelled
+function pickFile(accept) {
+  return new Promise((resolve) => {
+    const inp = h("input", { type: "file", accept, hidden: true });
+    const done = (v) => { inp.remove(); resolve(v); };
+    inp.addEventListener("change", () => done((inp.files && inp.files[0]) || null));
+    inp.addEventListener("cancel", () => done(null));
+    document.body.append(inp);
+    inp.click();
+  });
+}
+
+// About: where the library is, and Change Library…
+function sectionAboutWeb() {
+  const a = store.about || {};
+  const items = store.items(), trashed = store.items({ trashed: true });
+  let pdfs = 0, marks = 0;
+  for (const it of items) pdfs += (it.attachments || []).length;
+  for (const s of Object.values(store.stats || {})) marks += ((s && s.marks) || {}).total || 0;
+  const n = (x, one, many) => `${x.toLocaleString()} ${x === 1 ? one : many}`;
+  const folder = a.storage === "folder";
+  const where = folder ? `The folder “${a.library || "library"}”` : "This browser's storage for this site";
+  const change = h("button", { class: "btn btn--small", onclick: async () => {
+    try { await api.profileAct("changeLibrary"); } catch (e) { ui.toast(e.message, { error: true }); }
+  } }, "Change Library…");
+  return [
+    row("Library", h("div", { class: "st-inline" }, el("span", "st-plain", where), change),
+      hint(folder ? "Papers, marks and notes are plain files in this folder. Settings are in settings.json."
+        : "Stored by this browser for this site. Download a copy from Settings > Profile now and then." +
+          (a.persisted === false ? " The browser may clear it if the computer runs low on space." : ""))),
+    row("Contents", el("div", "st-plain num", [n(items.length, "paper", "papers"), n(pdfs, "PDF", "PDFs"), n(marks, "mark", "marks"),
+      n(store.lib.projects.length, "project", "projects"), n(trashed.length, "paper in the Trash", "papers in the Trash")].join(" · "))),
+    row("Version", el("div", "st-plain", "Paper Marker " + (a.version || "2.3 (web)"))),
   ];
 }
 const BUILD = { general: sectionGeneral, appearance: sectionAppearance, reader: sectionReader, marking: sectionMarking,

@@ -4,6 +4,9 @@ import * as journal from "./journal.js";
 import * as commands from "./commands.js";
 import * as undoLog from "./undo.js";
 import { openBulkAdd } from "./bulkadd.js";
+// UI preferences (widths, columns, sort, abstracts) are site-wide; what names a library's own projects
+// (the expanded project tree here, a project's order mode and collapsed sections below) is per library,
+// so it goes through api.lsKey (unchanged in server mode, "pm2:<libraryId>:…" in the browser version)
 const LS = {
   widths: "pm2:lib:widths", cols: "pm2:lib:cols", sort: "pm2:lib:sort", open: "pm2:lib:expanded", abs: "pm2:lib:abstract",
 };
@@ -298,7 +301,7 @@ export function mountLibrary(rootEl, ctx) {
   let sort = lsGet(LS.sort, { col: "added", dir: -1 });
   const colW = Object.assign(Object.fromEntries(COLS.map((c) => [c.id, c.w])), lsGet(LS.cols, {}));
   const widths = Object.assign({ side: 220, pane: 340 }, lsGet(LS.widths, {}));
-  const expanded = lsGet(LS.open, {});
+  const expanded = lsGet(api.lsKey(LS.open), {});
   let paneKey = null;           // what the item pane shows (key | "multi" | "none:<proj>")
   let visible = false;
   let narrowPane = false, narrowSide = false;   // toggled open in narrow windows
@@ -475,7 +478,7 @@ export function mountLibrary(rootEl, ctx) {
      A project keeps its papers in sections of the user's own (default: To mark, Reference) and in a
      custom order inside each, which is its priority. Stored on the project as sections + placement. */
   const DEFAULT_SECTIONS = [{ id: "mark", name: "To mark" }, { id: "ref", name: "Reference" }];
-  const LSP = { psort: "pm2:lib:psort", collapsed: "pm2:lib:collapsed" };
+  const LSP = { psort: api.lsKey("pm2:lib:psort"), collapsed: api.lsKey("pm2:lib:collapsed") };   // per library (see LS)
   let psort = lsGet(LSP.psort, {});            // pid -> "custom" | "sorted"
   let collapsed = lsGet(LSP.collapsed, {});    // pid:sid -> true
   const projectMode = () => route.filter === "project" && !isTrash() && store.project(route.id);
@@ -610,7 +613,7 @@ export function mountLibrary(rootEl, ctx) {
     const tw = el("span", "coll-twisty");
     if (opts.kids) {
       tw.append(icon(opts.open ? "chev-down" : "chev-right"));
-      tw.addEventListener("click", (ev) => { ev.stopPropagation(); expanded[r.id] = !opts.open; lsSet(LS.open, expanded); renderColl(); });
+      tw.addEventListener("click", (ev) => { ev.stopPropagation(); expanded[r.id] = !opts.open; lsSet(api.lsKey(LS.open), expanded); renderColl(); });
       row.setAttribute("aria-expanded", String(!!opts.open));
     }
     row.append(tw, icon(ic), el("span", "coll-label", label));
@@ -683,7 +686,7 @@ export function mountLibrary(rootEl, ctx) {
     } else if ((ev.key === "ArrowRight" || ev.key === "ArrowLeft") && cur.dataset.pid && cur.hasAttribute("aria-expanded")) {
       ev.preventDefault();
       const open = cur.getAttribute("aria-expanded") === "true";
-      if (open !== (ev.key === "ArrowRight")) { expanded[cur.dataset.pid] = !open; lsSet(LS.open, expanded); renderColl(); }
+      if (open !== (ev.key === "ArrowRight")) { expanded[cur.dataset.pid] = !open; lsSet(api.lsKey(LS.open), expanded); renderColl(); }
     } else if (ev.key === "Enter") {
       ev.preventDefault(); tbody.focus(); if (rows.length && !sel.size) selectOnly(rows[0]);
     }
@@ -710,7 +713,7 @@ export function mountLibrary(rootEl, ctx) {
     if (!name || !name.trim()) return;
     try {
       const p = await store.createProject(name.trim(), parent);
-      if (parent) { expanded[parent] = true; lsSet(LS.open, expanded); }
+      if (parent) { expanded[parent] = true; lsSet(api.lsKey(LS.open), expanded); }
       ctx.openLibrary({ name: "library", filter: "project", id: p.id });
     } catch (e) { ui.toast(e.message, { error: true }); }
   }
@@ -1729,7 +1732,7 @@ export function mountLibrary(rootEl, ctx) {
     enriching.add(key);
     let doc = null;
     try {
-      doc = await pdfjsLib.getDocument(api.pdfSrc(api.pdfUrl(key, att.key))).promise;
+      doc = await api.openPdf(key, att.key).promise;
       const meta = await doc.getMetadata().catch(() => ({}));
       const info = (meta && meta.info) || {};
       let text = "", lines = [];

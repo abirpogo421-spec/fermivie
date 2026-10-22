@@ -909,9 +909,12 @@ class Handler(BaseHTTPRequestHandler):
             st = store.get_settings()
         except StoreError:
             st = None
-        if st:
-            js = json.dumps(st, ensure_ascii=True).replace("<", "\\u003c")
-            html = html.replace(b"<script>", f"<script>window.__PM_SETTINGS__={js};</script>\n<script>".encode(), 1)
+        # a JSON data block (no inline script, so the page's CSP can forbid inline scripts); js/boot.js reads
+        # it. It is there even when settings.json can't be read ("null"): it also tells js/api.js that this
+        # page came from a Paper Marker server.
+        js = json.dumps(st or None, ensure_ascii=True).replace("<", "\\u003c")
+        block = f'<script type="application/json" id="pm-settings">{js}</script>'.encode()
+        html = html.replace(b"<!--pm-settings-->", block, 1)
         self._send(200, html, CTYPES[".html"], {"Cache-Control": "no-cache"})
 
     def _static(self, segs):
