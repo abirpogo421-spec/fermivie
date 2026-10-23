@@ -247,9 +247,13 @@ export function mountReader(root, ctx) {
     drawAllMarks();
   }
 
+  // Pages are whole CSS pixels. The browser snaps a canvas to whole CSS pixels when it draws it, so a page
+  // 530.5px tall got its sharp bitmap stretched to 531 and resampled: blurry text at most zooms (any zoom
+  // can land on a fraction; whole-number sizes at 100%, 200%... were why those looked fine).
+  const pageW = (P) => Math.max(1, Math.round(P.w1 * S.scale)), pageH = (P) => Math.max(1, Math.round(P.h1 * S.scale));
   function sizePage(P) {
-    P.div.style.width = P.w1 * S.scale + "px";
-    P.div.style.height = P.h1 * S.scale + "px";
+    P.div.style.width = pageW(P) + "px";
+    P.div.style.height = pageH(P) + "px";
     P.div.style.setProperty("--scale-factor", S.scale);
     layoutFlags(P);
   }
@@ -340,15 +344,18 @@ export function mountReader(root, ctx) {
   }
 
   async function renderBase(P) {
-    const { out } = outScale(P);
+    const { out, capped } = outScale(P);
     const key = out.toFixed(4);
     if (P.baseKey === key && P.canvas) return;
     if (P.task && P.taskKey === key) { try { await P.task.promise; } catch (_) {} return; }
     if (P.task) { try { P.task.cancel(); } catch (_) {} }
     const vp = P.page.getViewport({ scale: out });
     const c = el("canvas", "base");
-    c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
-    const task = P.page.render({ canvasContext: c.getContext("2d", { alpha: false }), viewport: vp });
+    // one canvas pixel per screen pixel of the (whole-pixel) page; the drawing is stretched by the rounding
+    // (under a pixel) so it fills the canvas exactly
+    const dpr = window.devicePixelRatio || 1;
+    c.width = capped ? Math.round(vp.width) : Math.round(pageW(P) * dpr); c.height = capped ? Math.round(vp.height) : Math.round(pageH(P) * dpr);
+    const task = P.page.render({ canvasContext: c.getContext("2d", { alpha: false }), viewport: vp, transform: [c.width / vp.width, 0, 0, c.height / vp.height, 0, 0] });
     P.task = task; P.taskKey = key;
     const div = P.div;
     // a failed render must not stay pinned as "in progress", or the page never sharpens again at this zoom
@@ -384,20 +391,23 @@ export function mountReader(root, ctx) {
       if ((x1 - x0) * (y1 - y0) * dpr * dpr <= MAX_PX || py < 1) break;
       py *= 0.7; px *= 0.7;
     }
-    const k = r.width / (P.w1 * S.scale);                     // 1 unless a pinch preview is in progress
+    // whole CSS pixels of the page, like the page itself, so this canvas isn't resampled either
+    x0 = Math.floor(x0); y0 = Math.floor(y0); x1 = Math.min(pageW(P), Math.ceil(x1)); y1 = Math.min(pageH(P), Math.ceil(y1));
+    const k = r.width / pageW(P);                             // 1 unless a pinch preview is in progress
     if (Math.abs(k - 1) > 0.001) return;
     const c = el("canvas", "detail");
-    c.width = Math.ceil((x1 - x0) * dpr); c.height = Math.ceil((y1 - y0) * dpr);
+    c.width = Math.round((x1 - x0) * dpr); c.height = Math.round((y1 - y0) * dpr);
     if (P.dtask) { try { P.dtask.cancel(); } catch (_) {} }
     const vp = P.page.getViewport({ scale: want });
-    const task = P.page.render({ canvasContext: c.getContext("2d", { alpha: false }), viewport: vp, transform: [1, 0, 0, 1, -x0 * dpr, -y0 * dpr] });
+    const kx = (pageW(P) * dpr) / vp.width, ky = (pageH(P) * dpr) / vp.height;   // the page's rounding, as in renderBase
+    const task = P.page.render({ canvasContext: c.getContext("2d", { alpha: false }), viewport: vp, transform: [kx, 0, 0, ky, -x0 * dpr, -y0 * dpr] });
     P.dtask = task; P.dpend = { x0, y0, x1, y1, scale: S.scale, m: py * 0.4 };
     const sc = S.scale, div = P.div;
     try { await task.promise; } catch (_) { if (P.dtask === task) P.dtask = null; return; }
     if (P.dtask !== task) return;
     P.dtask = null;
     if (!P.div || P.div !== div || sc !== S.scale) return;
-    const W = r.width, H = r.height;
+    const W = pageW(P), H = pageH(P);
     Object.assign(c.style, { left: (x0 / W) * 100 + "%", top: (y0 / H) * 100 + "%", width: ((x1 - x0) / W) * 100 + "%", height: ((y1 - y0) / H) * 100 + "%" });
     if (P.detail) P.detail.replaceWith(c); else P.div.insertBefore(c, P.tl);
     P.detail = c; P.detailRect = P.dpend;                   // P.dpend belongs to this render (P.dtask was still this task)
@@ -712,7 +722,7 @@ export function mountReader(root, ctx) {
   // below the flag above it on the same side, whichever is lower. Re-run whenever the page is resized.
   function layoutFlags(P) {
     if (!P.ov) return;
-    const H = P.h1 * S.scale;
+    const H = pageH(P);
     for (const side of ["l", "r"]) {
       const flags = [...P.ov.querySelectorAll(".badge--" + side)].sort((a, b) => a.dataset.fy - b.dataset.fy);
       let bottom = -Infinity;
@@ -1416,7 +1426,8 @@ export function mountReader(root, ctx) {
     const k = (cssW * dpr) / ((R.x1 - R.x0) * P.w1);
     const vp = P.page.getViewport({ scale: k });
     const c = document.createElement("canvas");
-    c.width = Math.round((R.x1 - R.x0) * vp.width); c.height = Math.round((R.y1 - R.y0) * vp.height);
+    // whole CSS pixels both ways (height: auto would otherwise land on a half pixel and get resampled, see sizePage)
+    c.width = Math.round(cssW * dpr); c.height = Math.round(Math.round((R.y1 - R.y0) * vp.height / dpr) * dpr);
     c.style.width = cssW + "px";
     await P.page.render({ canvasContext: c.getContext("2d", { alpha: false }), viewport: vp, transform: [1, 0, 0, 1, -R.x0 * vp.width, -R.y0 * vp.height] }).promise;
     return c;
