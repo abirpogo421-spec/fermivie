@@ -200,7 +200,7 @@
 .seltb { position: fixed; z-index: 70; display: flex; align-items: center; gap: 1px; padding: 3px; border-radius: 6px; background: var(--bg); box-shadow: var(--shadow-pop); }
 .seltb__b { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--mt-ink, var(--text)); font-weight: 600; font-size: 12.5px; }
 .seltb__b:hover { background: var(--hover); }
-.seltb__b kbd { font: 10.5px var(--mono); color: var(--text-3); }
+.seltb__key { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 .seltb__copy { color: var(--text-2); font-weight: 500; border-left: 1px solid var(--line-soft); border-radius: 0 4px 4px 0; }
 
 /* find in this paper */

@@ -42,7 +42,7 @@ export async function getJournalPdf(key, opts = {}) {
   // the browser version can only read folders the user chose: ask for one, or for the PDF itself
   if (api.mode === "browser" && !(w && w.length)) { askForPdf(key, since, opts); return; }
   if (w && !w.length) {
-    ui.toast("Opened the journal's page. No folders are being checked for downloads, so attach the PDF yourself, or add a folder in Settings > Library & import.", { ms: 9000 });
+    ui.toast("Opened the journal's page. Attach the PDF yourself, or add your Downloads folder in Settings > Library & import.", { ms: 9000 });
     return;
   }
   const names = w ? w.map(folderName).join(" or ") : "Downloads";

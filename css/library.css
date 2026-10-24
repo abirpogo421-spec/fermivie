@@ -213,3 +213,9 @@ textarea.ip-edit { resize: vertical; }
 .dialog p.bulk__sum:empty { display: none; }
 .bulk .dialog__actions { align-items: center; }
 .lib-empty__btn { margin-top: 10px; }
+.implib__drop { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 13px; }
+.implib__drop p { margin: 0; }
+.implib__drop[hidden], .implib__opts[hidden], .implib__opts label[hidden] { display: none; }
+.implib__opts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; }
+.implib__opts label { display: flex; align-items: center; gap: 6px; }
+.dialog.implib.is-drop { outline: 2px dashed var(--accent, #4c7dd3); outline-offset: -6px; }

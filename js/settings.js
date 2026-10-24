@@ -174,7 +174,7 @@ function sectionGeneral(S, save, ctx) {
   return [
     row("Tabs", radios(S.tabs, [
       ["horizontal", "Across the top"],
-      ["vertical", "Down the left side", "Shows each paper's title and version. Drag its edge to resize; it can be narrowed to icons."],
+      ["vertical", "Down the left side", "Shows each paper's title and version. Drag its edge to resize it or narrow it to icons."],
     ], (v) => save({ tabs: v }))),
     row("Search", h("div", { class: "st-inline" },
       h("button", { class: "btn", onclick: () => ctx.openPalette && ctx.openPalette() }, "Open Search"), el("kbd", "st-kbd", "⌘K")),
@@ -184,7 +184,7 @@ function sectionGeneral(S, save, ctx) {
 function sectionAppearance(S, save) {
   return [
     row("Theme", radios(S.theme, [["system", "Match the system"], ["light", "Light"], ["dark", "Dark"]], (v) => save({ theme: v }))),
-    row("Density", radios(S.density, [["comfortable", "Comfortable"], ["compact", "Compact", "Shorter rows, tabs and toolbars, so more papers fit."]], (v) => save({ density: v }))),
+    row("Density", radios(S.density, [["comfortable", "Comfortable"], ["compact", "Compact", "Shorter rows, tabs and toolbars."]], (v) => save({ density: v }))),
   ];
 }
 function sectionReader(S, save) {
@@ -220,17 +220,17 @@ function sectionLibrary(S, save, ctx, rerender) {
   return [
     row("Default version", radios(L.preferJournal !== false ? "journal" : "arxiv", [
       ["journal", "Journal version", "When a paper is published, new imports open the journal PDF first."],
-      ["arxiv", "arXiv version", "New imports open the arXiv PDF first; the journal PDF is still added when found."],
+      ["arxiv", "arXiv version", "New imports open the arXiv PDF first. The journal PDF is still added if one is found."],
     ], (v) => save({ library: { preferJournal: v === "journal" } }))),
     row("No free PDF", check("Use the arXiv preprint when the journal's PDF can't be downloaded", L.preprintFallback !== false,
       (v) => save({ library: { preprintFallback: v } }),
-      "Paywalled journal links still get a PDF: the paper's arXiv version is found by its title and authors and added instead.")),
+      "For a paywalled paper, Paper Marker finds the arXiv version by title and authors and adds that.")),
     api.mode === "browser" ? watchFoldersWeb(rerender) : row("Folders to check", listEditor(L.watchDirs || [], {
       placeholder: "~/Downloads",
       note: (d) => (known && !watching.has(expand(d)) ? "Not found" : ""),
       validate: (d) => (/^(?:[/~]|[A-Za-z]:[\\/]|\\\\)/.test(d) ? "" : "Use a full folder path, such as ~/Downloads, /Volumes/Data/Papers or C:\\Users\\you\\Downloads."),
       onChange: (v) => save({ library: { watchDirs: v } }),
-    }), hint("Journal PDFs you download into these folders are added to the matching paper. Files are only read, never moved.")),
+    }), hint("PDFs you download into these folders are added to the matching paper.")),
     // a project always has at least one section (the library keeps one too); an empty list saved
     // earlier means the default pair, so that is what shows
     row("New project sections", listEditor(L.newProjectSections && L.newProjectSections.length ? L.newProjectSections : SETTINGS_DEFAULTS.library.newProjectSections, {
@@ -271,7 +271,7 @@ export async function loadProfile(path, after) {
   let pv;
   try { pv = (await api.profileAct("preview", { path })).preview; } catch (e) { ui.toast(e.message, { error: true }); return false; }
   const ok = await ui.confirmDialog({ title: "Load this profile?",
-    message: `${pv.papers} papers, ${pv.projects} projects and ${pv.marks} marks, saved ${when(pv.savedAt)}. Papers you already have stay as they are; the rest are added.` +
+    message: `${pv.papers} papers, ${pv.projects} projects and ${pv.marks} marks, saved ${when(pv.savedAt)}. Papers you already have aren't changed. The rest are added.` +
       (api.mode === "browser" ? "" : " This folder then becomes your profile folder."),
     ok: "Load profile" });
   if (!ok) return false;
@@ -290,7 +290,7 @@ const loadedText = (s) => `Loaded ${s.added} papers, ${s.projects} projects, ${s
 function sectionProfile(S, save, ctx, rerender) {
   if (api.mode === "browser") return sectionProfileWeb(S, save, ctx, rerender);
   const box = el("div", "st-profile");
-  box.append(hint("Your profile is a folder that holds your whole library: papers, marks, notes, projects, settings and copies of the PDFs. Paper Marker saves into it after every change. On another computer, or a fresh copy of Paper Marker, load the folder and everything comes back. Put it on a synced drive, a USB stick, or in a private GitHub repository."));
+  box.append(hint("Your profile is a folder with a copy of your library and settings, including the PDFs. Paper Marker saves into it after every change. Load it on another computer or in a fresh copy of Paper Marker to get everything back. It can live on a synced drive, a USB stick or in a private GitHub repository."));
   const slot = el("div"); box.append(slot);
   const draw = (P) => {
     slot.textContent = "";
@@ -301,7 +301,7 @@ function sectionProfile(S, save, ctx, rerender) {
       catch (e) {
         if (e.status === 409 && e.payload && e.payload.preview) {
           if (await loadProfile(folder, () => refresh())) return;
-          if (await ui.confirmDialog({ title: "Replace that profile?", message: "The folder already has a profile. Replace it with this library? The profile that's there now will be overwritten.", ok: "Replace", danger: true })) connect(folder, true);
+          if (await ui.confirmDialog({ title: "Replace that profile?", message: "This folder already has a profile. Replacing it overwrites that profile with this library.", ok: "Replace", danger: true })) connect(folder, true);
         } else ui.toast(e.message, { error: true, ms: 8000 });
       }
     };
@@ -317,9 +317,9 @@ function sectionProfile(S, save, ctx, rerender) {
     slot.append(
       row("Profile folder", h("div", { class: "st-inline" }, path, use), actions, state),
       row("PDFs", check("Keep a copy of every PDF in the profile", P.includePdfs, async (v) => { await save({ profile: { includePdfs: v } }); refresh(); },
-        "Makes the profile complete on its own. Without it, PDFs are downloaded again from where they came from when you load it.")),
+        "If this is off, loading the profile downloads the PDFs again from their sources.")),
       row("Git / GitHub", check("Commit each save with git", P.git, async (v) => { await save({ profile: { git: v } }); refresh(); },
-        P.folder && !P.isGitRepo ? "This folder isn't a git repository. To use GitHub: make a private repository there, clone it, and choose the cloned folder above." : "When the profile folder is a git repository (for example a clone of a private GitHub repo)."),
+        P.folder && !P.isGitRepo ? "This folder isn't a git repository. To use GitHub, make a private repository, clone it, and choose the cloned folder above." : "Works when the profile folder is a git repository, such as a clone of a private GitHub repo."),
         check("Also push after each commit", P.push, async (v) => { await save({ profile: { push: v } }); refresh(); }, "Sends each save to the repository's remote, using git's own sign-in on this computer.")),
       row("Load a profile", h("div", { class: "st-inline" },
         h("button", { class: "btn", onclick: async () => { const f = await chooseFolder("Choose the profile folder to load"); if (f) loadProfile(f, () => refresh()); } }, "Choose profile…")),
@@ -374,13 +374,13 @@ function watchFoldersWeb(rerender) {
   box.append(rows);
   if (!canOpenFolders()) return row("Folders to check", box, hint("This browser can't open folders. After Get journal PDF, choose the downloaded PDF instead."));
   box.append(h("div", { class: "st-list__add" }, h("button", { class: "btn btn--small", onclick: () => act("watchFolder", {}) }, "Choose Folder…")));
-  return row("Folders to check", box, hint("Journal PDFs you download into these folders are added to the matching paper. Files are only read, never moved."));
+  return row("Folders to check", box, hint("PDFs you download into these folders are added to the matching paper."));
 }
 
 // Profile: a connected folder (Chrome, Edge, Arc), a zip download, and loading either back
 function sectionProfileWeb(S, save, ctx, rerender) {
   const box = el("div", "st-profile");
-  box.append(hint("Your profile holds your whole library: papers, marks, notes, projects, settings and copies of the PDFs. Load it in another browser, on another computer, or in the downloadable version of Paper Marker, and everything comes back."));
+  box.append(hint("Your profile is a copy of your library and settings, including the PDFs. You can load it in another browser, on another computer or in the downloadable version of Paper Marker."));
   const slot = el("div"); box.append(slot);
   const refresh = async () => { try { draw((await api.profile()).profile || {}); } catch (e) { slot.textContent = ""; slot.append(hint("Couldn't read the profile status: " + e.message)); } };
   const connect = async (folder, replace = false) => {
@@ -388,7 +388,7 @@ function sectionProfileWeb(S, save, ctx, rerender) {
     catch (e) {
       if (e.status === 409 && e.payload && e.payload.preview) {
         if (await loadProfile(folder, () => refresh())) return;
-        if (await ui.confirmDialog({ title: "Replace that profile?", message: "The folder already has a profile. Replace it with this library? The profile that's there now will be overwritten.", ok: "Replace", danger: true })) connect(folder, true);
+        if (await ui.confirmDialog({ title: "Replace that profile?", message: "This folder already has a profile. Replacing it overwrites that profile with this library.", ok: "Replace", danger: true })) connect(folder, true);
       } else ui.toast(e.message, { error: true, ms: 8000 });
     }
   };
@@ -435,10 +435,10 @@ function sectionProfileWeb(S, save, ctx, rerender) {
       row("Download", h("div", { class: "st-inline" }, h("button", { class: "btn", onclick: exportZip }, "Download Profile (.zip)")),
         hint("The whole profile in one zip file. Load Profile or Zip brings it back here or in another browser.")),
       row("PDFs", check("Keep a copy of every PDF in the profile", P.includePdfs !== false, async (v) => { await save({ profile: { includePdfs: v } }); refresh(); },
-        "Makes the profile complete on its own. Without it, PDFs are downloaded again from where they came from when you load it.")),
+        "If this is off, loading the profile downloads the PDFs again from their sources.")),
       row("Load a profile", h("div", { class: "st-inline" }, loadBtn),
         hint("Adds the papers, marks, notes and projects from a profile folder or zip that this library doesn't have. Nothing you already have is changed.")),
-      row("Git / GitHub", hint("Committing each save with git needs the downloadable version of Paper Marker, which runs on your computer.")),
+      row("Git / GitHub", hint("Committing each save with git needs the downloadable version of Paper Marker.")),
     );
   };
   refresh();

@@ -160,7 +160,7 @@ export function openEditor(opts = {}) {
       form.append(
         field("Name", name),
         field("Colour", sw),
-        field("What it's for", purpose, "Shown when you make this kind of mark, and written at the top of each .marks.md file so anyone reading your notes knows what each type means."),
+        field("What it's for", purpose, "Shown when you make this kind of mark. Also written at the top of each .marks.md file."),
         el("div", "mte-two"),
       );
       form.lastChild.append(field("Note prompt", noteLabel), field("Example note", ph));
@@ -213,7 +213,7 @@ export function openEditor(opts = {}) {
     };
 
     const head = el("div", "mte-head");
-    head.append(h("h2", null, "Mark types"), h("p", null, "What each kind of mark is for. Your marks keep their type; renaming or recolouring a type updates every mark that uses it."));
+    head.append(h("h2", null, "Mark types"), h("p", null, "Renaming or recolouring a type updates every mark that uses it."));
     const side = el("div", "mte-side"); side.append(list, el("div", "mte-sidefoot"));
     side.lastChild.append(add);
     const body = el("div", "mte-body"); body.append(side, form);

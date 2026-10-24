@@ -4,6 +4,7 @@ import * as journal from "./journal.js";
 import * as commands from "./commands.js";
 import * as undoLog from "./undo.js";
 import { openBulkAdd } from "./bulkadd.js";
+import * as dup from "./duplicates.js";
 // UI preferences (widths, columns, sort, abstracts) are site-wide; what names a library's own projects
 // (the expanded project tree here, a project's order mode and collapsed sections below) is per library,
 // so it goes through api.lsKey (unchanged in server mode, "pm2:<libraryId>:…" in the browser version)
@@ -426,6 +427,7 @@ export function mountLibrary(rootEl, ctx) {
     if (it.trashed) return false;
     switch (r.filter) {
       case "unfiled": return !(it.projects || []).length;
+      case "duplicates": return dup.groups().has(it.key);
       case "recent": return !!it.opened;
       case "marked": return store.markCounts(it.key).total > 0;
       case "project": { const ids = store.projectTree(r.id); return (it.projects || []).some((p) => ids.includes(p)); }
@@ -446,7 +448,13 @@ export function mountLibrary(rootEl, ctx) {
     let list = scopeItems();
     if (tagFilter.size) list = list.filter((it) => [...tagFilter].every((t) => (it.tags || []).includes(t)));
     if (q) list = list.filter((it) => matchesQuery(it, q) || ftHits.has(it.key));
-    return sortItems(list);
+    list = sortItems(list);
+    if (route.filter === "duplicates") {   // each set of duplicates together, in the order the sort put the first one
+      const g = dup.groups(), at = new Map();
+      list.forEach((it, i) => { if (!at.has(g.get(it.key))) at.set(g.get(it.key), i); });
+      list = list.map((it, i) => [at.get(g.get(it.key)), i, it]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+    }
+    return list;
   }
   const firstAuthor = (it) => ((it.authors || [])[0] || {}).family || ((it.authors || [])[0] || {}).given || "";
   function sortVal(it, col) {
@@ -650,6 +658,7 @@ export function mountLibrary(rootEl, ctx) {
     collEl.append(
       collRow({ name: "library", filter: "all" }, "My Library", "library", countFor({ filter: "all" })),
       collRow({ name: "library", filter: "unfiled" }, "Unfiled", "inbox", null),
+      collRow({ name: "library", filter: "duplicates" }, "Duplicates", "pages", null),
       collRow({ name: "library", filter: "recent" }, "Recently Opened", "clock", null),
       collRow({ name: "library", filter: "marked" }, "With Marks", "mark", null),
       collRow({ name: "library", filter: "trash" }, "Trash", "trash", null),
@@ -829,6 +838,7 @@ export function mountLibrary(rootEl, ctx) {
     switch (route.filter) {
       case "project": return "No papers in this project yet. Add one with Add Paper or drop a PDF here.";
       case "unfiled": return "Every paper is in at least one project.";
+      case "duplicates": return "No duplicates. Papers with the same DOI, arXiv ID, or title and year show up here.";
       case "recent": return "Papers you open will show up here.";
       case "marked": return "Papers with marks will show up here.";
       case "trash": return "The trash is empty.";
@@ -1060,7 +1070,7 @@ export function mountLibrary(rootEl, ctx) {
     const keys = visibleItems().map((it) => it.key);
     if (!keys.length) { ui.toast("There are no papers in this list to export."); return; }
     const pid = currentProject(), p = pid && store.project(pid);
-    const names = { all: "library", unfiled: "unfiled", recent: "recently-opened", marked: "with-marks", trash: "trash" };
+    const names = { all: "library", unfiled: "unfiled", duplicates: "duplicates", recent: "recently-opened", marked: "with-marks", trash: "trash" };
     const base = (p ? p.name : names[route.filter] || "library") + (query.trim() || tagFilter.size ? "-filtered" : "");
     try {
       const t = await api.bibtex({ keys });
@@ -1126,15 +1136,28 @@ export function mountLibrary(rootEl, ctx) {
         try { await store.bulk({ keys, removeProjects: store.projectTree(pid) }); } catch (e) { ui.toast(e.message, { error: true }); }
       } });
       items.push({ label: anyUnread ? "Mark as Read" : "Mark as Unread", action: () => setRead(keys, anyUnread ? "read" : "unread") });
+      if (canMerge(keys)) items.push({ label: `Merge ${keys.length} Duplicates`, action: () => mergeKeys(keys) });
       items.push("-", { label: "Copy BibTeX", action: () => copyBib(keys) }, { label: "Copy Citation", action: () => copyCite(keys) });
       items.push("-", { label: keys.length === 1 ? "Move to Trash" : `Move ${keys.length} Papers to Trash`, kbd: "⌫", action: () => trashKeys(keys) });
     }
     ui.menu(items, at);
   }
+  // the selection is one set of duplicates
+  function canMerge(keys) {
+    if (keys.length < 2) return false;
+    const g = dup.groups(), id = g.get(keys[0]);
+    return !!id && keys.every((k) => g.get(k) === id);
+  }
+  async function mergeKeys(keys) {
+    const ok = await ui.confirmDialog({ title: `Merge ${keys.length} papers?`, message: "One copy gets the details, tags, projects, PDFs, marks and notes of all of them. The rest go to the Trash.", ok: "Merge" });
+    if (!ok) return;
+    try { const k = await dup.merge(keys); undoLog.clear(); ui.toast("Merged."); if (k) store.emit("reveal", { keys: [k] }); }
+    catch (e) { ui.toast(e.message, { error: true }); }
+  }
   async function emptyTrash() {
     const n = store.items({ trashed: true }).length;
     if (!n) { ui.toast("The trash is already empty."); return; }
-    const ok = await ui.confirmDialog({ title: `Empty the Trash (${n} ${n === 1 ? "paper" : "papers"})?`, message: "The papers and their PDFs, marks and notes are moved to library/_deleted, not erased. They no longer appear in the app.", ok: "Empty Trash", danger: true });
+    const ok = await ui.confirmDialog({ title: `Empty the Trash (${n} ${n === 1 ? "paper" : "papers"})?`, message: "The papers leave the app. Their PDFs, marks and notes are moved to library/_deleted.", ok: "Empty Trash", danger: true });
     if (!ok) return;
     try { await api.emptyTrash(); undoLog.clear(); await store.load(); ui.toast("Trash emptied."); }
     catch (e) { ui.toast(e.message, { error: true }); }
@@ -1147,6 +1170,10 @@ export function mountLibrary(rootEl, ctx) {
       onDone: (keys) => store.emit("reveal", { keys }) });
   }
   ctx.bulkAdd = bulk;
+  function importLibrary() {
+    import("./importlib.js").then((m) => m.openImportLibrary({ onDone: (keys) => store.emit("reveal", { keys }) }))
+      .catch((e) => ui.toast(e.message, { error: true }));
+  }
 
   function openAdd() {
     const box = el("div", "lib-add");
@@ -1160,6 +1187,7 @@ export function mountLibrary(rootEl, ctx) {
       h("div", { class: "lib-add__row" }, inp, go),
       h("div", { class: "lib-add__row" }, choose,
         h("button", { class: "btn", title: "Paste a list, a reference list or a .bib file", onclick: () => { const t = inp.value; pop.close(); bulk(t); } }, "Add many…"),
+        h("button", { class: "btn", title: "Bring over a library exported from Zotero, Mendeley, EndNote, JabRef and others", onclick: () => { pop.close(); importLibrary(); } }, "Import library…"),
         el("span", "faint lib-add__hint", "or drop PDFs anywhere.")),
     );
     if (proj) box.append(el("div", "faint lib-add__hint", `New papers go into ${proj.name}.`));
@@ -1198,7 +1226,7 @@ export function mountLibrary(rootEl, ctx) {
         if (j.duplicate) {
           st.textContent = "Already in your library";
           if (pid && !(it.projects || []).includes(pid)) await store.bulk({ keys: [it.key], addProjects: [pid] }).catch(() => {});
-        } else st.textContent = "Added" + ((j.warnings || []).length ? " — " + j.warnings[0] : "");
+        } else st.textContent = "Added" + ((j.warnings || []).length ? ". " + j.warnings[0] : "");
         st.classList.add("is-ok");
         row.querySelector(".lib-add__what").textContent = texPlain(it.title) || label;
         pop.place();
@@ -1325,6 +1353,7 @@ export function mountLibrary(rootEl, ctx) {
         const t = await ui.promptDialog({ title: "Add tag", message: `Adds the tag to ${keys.length} papers.`, placeholder: "Tag", ok: "Add Tag" });
         if (t && t.trim()) { try { await store.bulk({ keys, addTags: [t.trim()] }); } catch (e) { ui.toast(e.message, { error: true }); } }
       } }, icon("tag"), "Add Tag");
+      if (canMerge(keys)) btns.append(h("button", { class: "btn", onclick: () => mergeKeys(keys) }, `Merge ${keys.length} Duplicates`));
       btns.append(addP, addT,
         h("button", { class: "btn", onclick: () => copyBib(keys) }, "Copy BibTeX"),
         h("button", { class: "btn btn--danger", onclick: () => trashKeys(keys) }, icon("trash"), "Move to Trash"));
@@ -1559,7 +1588,7 @@ export function mountLibrary(rootEl, ctx) {
           } },
           "-",
           { label: "Remove…", action: async () => {
-            const ok = await ui.confirmDialog({ title: `Remove “${a.label || a.key}”?`, message: m.total ? `Its ${m.total} marks go with it. The file is kept in the library's history folder, not erased.` : "The file is kept in the library's history folder, not erased.", ok: "Remove", danger: true });
+            const ok = await ui.confirmDialog({ title: `Remove “${a.label || a.key}”?`, message: m.total ? `Its ${m.total} marks go with it. The file is moved to the library's history folder.` : "The file is moved to the library's history folder.", ok: "Remove", danger: true });
             if (!ok) return;
             try { const j = await api.removeAttachment(it.key, a.key); if (j.item) store.setItem(j.item); else await store.load(); } catch (e) { ui.toast(e.message, { error: true }); }
           } },
@@ -1577,7 +1606,7 @@ export function mountLibrary(rootEl, ctx) {
     if (journal.canGet(it)) {
       const onlyPreprint = atts.length && atts.every((a) => /arxiv\.org/i.test(a.url || "") || /^arxiv/i.test(a.label || ""));
       if (onlyPreprint) list.append(el("div", "ip-empty ip-pad", "Only the arXiv preprint is here."));
-      btns.append(h("button", { class: "btn btn--small", title: "Opens the journal's PDF in your browser with your own access, then adds it when you download it", onclick: () => journal.getJournalPdf(it.key) }, "Get journal PDF"));
+      btns.append(h("button", { class: "btn btn--small", title: "Opens the journal's page in your browser. The PDF is added when you download it.", onclick: () => journal.getJournalPdf(it.key) }, "Get journal PDF"));
     }
     if (it.type !== "preprint" && !atts.some((a) => /arxiv\.org/i.test(a.url || "") || /^arxiv/i.test(a.label || ""))) {
       const fb = h("button", { class: "btn btn--small", title: "Look for this paper's arXiv preprint and add it", onclick: async () => {
@@ -1815,6 +1844,8 @@ export function mountLibrary(rootEl, ctx) {
       run: async () => { await ensureLibrary(); openAdd(); } },
     { id: "library.add-many", title: "Add many papers at once…", section: "Library", keywords: "bulk import list bibtex bib references several multiple batch",
       run: async () => { await ensureLibrary(); bulk(); } },
+    { id: "library.import-library", title: "Import a library from Zotero, Mendeley, EndNote…", section: "Library", keywords: "import zotero mendeley endnote jabref paperpile readcube citavi rdf ris bibtex folder export migrate",
+      run: async () => { await ensureLibrary(); importLibrary(); } },
     { id: "library.add-pdf", title: "Add PDF from a file…", section: "Library", keywords: "import upload choose local",
       run: () => { const f = h("input", { type: "file", accept: "application/pdf,.pdf", multiple: true, hidden: true });
         f.addEventListener("change", () => { const files = [...f.files]; f.remove(); if (files.length) ctx.importFiles(files, currentProject()); });
@@ -1846,6 +1877,7 @@ export function mountLibrary(rootEl, ctx) {
     { id: "library.reveal-current", title: "Show this paper in the Library", section: "Library", keywords: "reveal locate find", when: () => !!readingKey(),
       run: async () => { const k = readingKey(); await ensureLibrary({ name: "library", filter: "all" }); store.emit("reveal", { keys: [k] }); } },
     { id: "library.go-unfiled", title: "Unfiled papers", section: "Go to", keywords: "show library", run: goto("unfiled") },
+    { id: "library.go-duplicates", title: "Duplicate papers", section: "Go to", keywords: "show library same twice merge", run: goto("duplicates") },
     { id: "library.go-recent", title: "Recently opened papers", section: "Go to", keywords: "show library history", run: goto("recent") },
     { id: "library.go-marked", title: "Papers with marks", section: "Go to", keywords: "show library annotated", run: goto("marked") },
     { id: "library.go-trash", title: "Trash", section: "Go to", keywords: "show library deleted", run: goto("trash") },

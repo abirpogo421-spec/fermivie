@@ -135,7 +135,7 @@ function parseHash(hash) {
   if (parts[0] === "settings") return { name: "settings", section: parts[1] || "" };
   if (parts[0] === "library") {
     if (parts[1] === "project" && parts[2]) return { name: "library", filter: "project", id: parts[2] };
-    if (["unfiled", "recent", "marked", "trash"].includes(parts[1])) return { name: "library", filter: parts[1] };
+    if (["unfiled", "duplicates", "recent", "marked", "trash"].includes(parts[1])) return { name: "library", filter: parts[1] };
   }
   return { name: "library", filter: "all" };
 }
@@ -271,7 +271,7 @@ function popupWindow(id, key, att) {
 async function openInNewWindow(id) {
   const t = tabs.find((x) => tid(x) === id); if (!t) return;
   if (id === active && reader.hasUnsavedDraft()) {
-    const ok = await ui.confirmDialog({ title: "Move the tab with an unsaved mark?", message: "The note you were typing hasn't been saved; it won't come along.", ok: "Move Anyway" });
+    const ok = await ui.confirmDialog({ title: "Move the tab with an unsaved mark?", message: "The note you were typing hasn't been saved and won't move with the tab.", ok: "Move Anyway" });
     if (!ok) return;
   }
   if (popupWindow(id, t.key, t.att)) await closeTab(id, { force: true, moved: true });

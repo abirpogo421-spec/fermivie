@@ -103,6 +103,8 @@ export const api = {
   cropUrl: (key, name) => `/files/${enc(key)}/crops/${enc(name)}`,
   // a pdf.js loading task ({promise, destroy()}) for one attachment
   openPdf: (key, att) => pdfjsLib.getDocument(api.pdfSrc(api.pdfUrl(key, att))),
+  // the same for PDF bytes that aren't in the library yet (a file being imported)
+  openPdfData: (data) => { const { url, ...src } = api.pdfSrc(""); return pdfjsLib.getDocument({ ...src, data, isEvalSupported: false }); },
   // localStorage key for data that belongs to one library (marks safety net, open tabs, per-paper view)
   lsKey: (name) => (api.mode === "browser" && api.libraryId && String(name).startsWith("pm2:") ? "pm2:" + api.libraryId + ":" + String(name).slice(4) : name),
 };

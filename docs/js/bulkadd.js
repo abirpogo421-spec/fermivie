@@ -84,7 +84,7 @@ export function openBulkAdd({ text = "", files = [], project = null, plain = (t)
   d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", "Add papers");
   scrim.append(d);
   const ta = h("textarea", { class: "textarea bulk__text", rows: 7, spellcheck: false, "aria-label": "Papers to add",
-    placeholder: "One per line: arXiv IDs, DOIs, links or titles.\nOr paste a reference list, or a whole .bib file." });
+    placeholder: "arXiv IDs, DOIs, links or titles, one per line.\nA reference list or a .bib file works too." });
   ta.value = text;
   const file = h("input", { type: "file", multiple: true, hidden: true, accept: ".bib,.txt,.ris,.md,.pdf,application/pdf,text/plain" });
   const choose = h("button", { class: "btn btn--small", onclick: () => file.click() }, "Choose files…");
