@@ -5,6 +5,7 @@
 import { store } from "./store.js";
 import { api } from "./api.js";
 import * as ui from "./ui.js";
+import * as undoLog from "./undo.js";
 
 const { h, el } = ui;
 
@@ -577,6 +578,8 @@ function idKeys(m) {
   if (m.arxiv) out.push("arxiv:" + m.arxiv.toLowerCase().replace(/v\d+$/, ""));
   const t = normTitle(m.title);
   if (t.length >= 20) out.push("t:" + t + ":" + (m.year || ""));
+  // a short title counts with its year and first author ("lect_kondo_rev2" saved on its own)
+  if (t) out.push("ta:" + t + ":" + (m.year || "") + ":" + normTitle(((m.authors || [])[0] || {}).family || ""));
   return out;
 }
 // the same paper twice in the export (Zotero's Duplicate Items): one record with everything from both
@@ -614,6 +617,13 @@ async function ensureMarkTypes(colors, source) {
   return map;
 }
 
+// run the jobs (functions returning promises) n at a time
+async function runPool(jobs, n) {
+  let i = 0;
+  const one = async () => { while (i < jobs.length) await jobs[i++](); };
+  await Promise.all(Array.from({ length: Math.min(n, jobs.length) }, one));
+}
+
 /* ---------------------------------------------------------------- the dialog */
 export function openImportLibrary({ onDone } = {}) {
   let plan = null, running = false, stopped = false;
@@ -630,17 +640,17 @@ export function openImportLibrary({ onDone } = {}) {
       "Mendeley, EndNote, JabRef, Paperpile and others: export as BibTeX, RIS or EndNote XML into a folder with the PDFs. A folder of PDFs works too."),
     h("div", { class: "bulk__row" }, choose, el("span", "faint", "or drop the folder here")));
   const opts = el("div", "implib__opts");
-  const optProjects = h("input", { type: "checkbox", checked: true }), optAuto = h("input", { type: "checkbox" }), optFetch = h("input", { type: "checkbox", checked: true });
+  const optProjects = h("input", { type: "checkbox", checked: true }), optAuto = h("input", { type: "checkbox" });
   opts.append(
     h("label", null, optProjects, " Make each collection a project"),
-    h("label", null, optAuto, " Include automatic tags (publisher keywords)"),
-    h("label", null, optFetch, " Download missing PDFs that are free online (arXiv, open access)"));
+    h("label", null, optAuto, " Include automatic tags (publisher keywords)"));
   opts.hidden = true;
   const list = el("div", "bulk__list"), sum = el("p", "bulk__sum faint");
   const cancel = h("button", { class: "btn", onclick: () => (running ? stop() : close()) }, "Cancel");
-  const copyMissing = h("button", { class: "btn", hidden: true, onclick: () => copyList() }, "Copy list of papers without a PDF");
+  const copyMissing = h("button", { class: "btn", hidden: true, title: "Copy the titles and DOIs of the papers without a PDF", onclick: () => copyList() }, "Copy List");
+  const findPdfs = h("button", { class: "btn", hidden: true, title: "Download free copies (arXiv, open access) of the papers without a PDF", onclick: () => fetchMissing() }, "Find PDFs Online");
   const go = h("button", { class: "btn btn--primary", disabled: true, onclick: () => (go.dataset.done ? close() : run()) }, "Import");
-  d.append(h("h2", null, "Import a library"), drop, opts, sum, list, h("div", { class: "dialog__actions" }, copyMissing, el("span", "grow"), cancel, go), pick);
+  d.append(h("h2", null, "Import a library"), drop, opts, sum, list, h("div", { class: "dialog__actions" }, copyMissing, findPdfs, el("span", "grow"), cancel, go), pick);
 
   pick.addEventListener("change", () => {
     const files = [...pick.files].map((f) => ({ file: f, path: (f.webkitRelativePath || f.name).split("/").slice(1).join("/") || f.name }));
@@ -650,7 +660,7 @@ export function openImportLibrary({ onDone } = {}) {
   d.addEventListener("dragleave", () => d.classList.remove("is-drop"));
   d.addEventListener("drop", async (ev) => {
     ev.preventDefault(); d.classList.remove("is-drop");
-    if (running) return;
+    if (running || plan) return;
     const entries = [...ev.dataTransfer.items].map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
     const files = [];
     const walk = async (entry, prefix) => {
@@ -673,12 +683,12 @@ export function openImportLibrary({ onDone } = {}) {
     if (!files.length) return;
     sum.textContent = "Reading the folder…";
     try { plan = await readFolder(files); }
-    catch (e) { sum.textContent = e.message; return; }
+    catch (e) { sum.textContent = e.message; plan = null; return; }
     const lib = libraryIndex();
     plan.records = mergeDuplicates(plan.records);
     for (const r of plan.records) r.have = idKeys(r.meta).map((k) => lib.get(k)).find(Boolean) || null;
     const n = plan.records.length + plan.loose.length;
-    if (!n) { sum.textContent = "There are no papers or PDFs in that folder."; return; }
+    if (!n) { sum.textContent = "There are no papers or PDFs in that folder."; plan = null; return; }
     drop.hidden = true; opts.hidden = !plan.records.length;
     optAuto.parentElement.hidden = !plan.records.some((r) => r.autoTags.length);
     const withPdf = plan.records.filter((r) => r.pdfs.length).length + plan.loose.length;
@@ -702,12 +712,16 @@ export function openImportLibrary({ onDone } = {}) {
   }
 
   const status = (r, txt, cls) => { r.st.textContent = txt; r.st.className = "bulk__st" + (cls ? " is-" + cls : ""); };
-  let counts = { added: 0, have: 0, pdfs: 0, marks: 0, notes: 0, failed: 0 };
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  let counts = null;
+  // what this import changed, for ⌘Z
+  const undoState = { created: [], patched: [], projects: [], attached: [] };
   async function run() {
-    running = true; stopped = false; go.disabled = true; cancel.textContent = "Stop"; opts.hidden = true;
+    running = true; stopped = false; go.disabled = true; go.textContent = "Importing…"; cancel.textContent = "Stop"; opts.hidden = true;
     counts = { added: 0, have: 0, pdfs: 0, marks: 0, notes: 0, failed: 0 };
+    const t0 = performance.now();
     try {
-      // projects first, parents before children; an existing project with the same name is reused
+      // 1. projects, parents before children; an existing project with the same name is reused
       const projectOf = new Map();
       if (optProjects.checked || !plan.records.length) {
         const make = async (id) => {
@@ -715,35 +729,52 @@ export function openImportLibrary({ onDone } = {}) {
           const c = plan.collections.get(id); if (!c) return null;
           const parent = c.parent ? await make(c.parent) : null;
           let p = store.lib.projects.find((x) => x.name === c.name && (x.parent || null) === parent);
-          if (!p) { p = (await api.createProject(c.name, parent)).project; store.lib.projects.push(p); }
+          if (!p) {
+            p = (await api.createProject(c.name, parent)).project;
+            store.lib.projects.push(p);
+            undoState.projects.push({ id: p.id, name: p.name, parent, members: [] });
+          }
           projectOf.set(id, p.id);
           return p.id;
         };
         for (const id of plan.collections.keys()) await make(id);
       }
-      let typeMap = new Map();
-      const typeFor = (c) => (c && typeMap.get(c)) || "highlight";
-      const pending = new Set();
-      const withTypes = async (file) => {
-        // the first pass collects colours, so every colour type exists before marks are saved
-        const marks = await marksFromPdf(file, (c) => { if (c && !typeMap.has(c)) pending.add(c); return c || ""; });
-        if (pending.size) { const m = await ensureMarkTypes([...pending], plan.source); m.forEach((v, k) => typeMap.set(k, v)); pending.clear(); }
-        marks.forEach((m) => (m.type = typeFor(m.type)));
-        return marks;
-      };
-      // all the new papers in a few requests, so the library file is saved a few times instead of once per paper
       const tagsOf = (r) => [...r.tags, ...(optAuto.checked ? r.autoTags : [])];
       const projOf = (r) => [...new Set(r.collections.map((c) => projectOf.get(c)).filter(Boolean))];
+
+      // 2. the highlights inside every PDF, four PDFs at a time (fast: nothing is written yet)
+      const pdfJobs = [];
+      for (const r of plan.records) if (!(r.have && (r.have.attachments || []).length)) for (const pdf of r.pdfs) pdfJobs.push(pdf);
+      for (const x of plan.loose) pdfJobs.push(x);
+      const colors = new Set();
+      let read = 0;
+      await runPool(pdfJobs.map((pdf) => async () => {
+        if (stopped) return;
+        pdf.marks = await marksFromPdf(pdf.file, (c) => { if (c) colors.add(c); return c || ""; }).catch(() => []);
+        read++; sum.textContent = `Reading highlights… ${read} of ${pdfJobs.length}`;
+      }), 4);
+      if (stopped) return;
+      if (colors.size) {
+        const map = await ensureMarkTypes([...colors], plan.source);
+        for (const pdf of pdfJobs) for (const m of pdf.marks || []) m.type = (m.type && map.get(m.type)) || "highlight";
+      }
+
+      // 3. every new paper, with its tags, projects and notes, in one request per 250
       const fresh = plan.records.filter((r) => !r.have);
-      if (fresh.length) sum.textContent = `Adding ${fresh.length} papers…`;
       for (let i = 0; i < fresh.length && !stopped; i += 250) {
         const part = fresh.slice(i, i + 250);
+        sum.textContent = `Adding papers… ${Math.min(i + 250, fresh.length)} of ${fresh.length}`;
         try {
-          const items = (await api.createItems(part.map((r) => ({ meta: r.meta, tags: tagsOf(r), projects: projOf(r) })))).items;
-          part.forEach((r, k) => { r.key = items[k].key; r.pdfOk = false; keys.push(r.key); counts.added++; status(r, "Added", "ok"); });
+          const items = (await api.createItems(part.map((r) => ({ meta: r.meta, tags: tagsOf(r), projects: projOf(r),
+            notes: r.notes.length ? r.notes.join("\n\n") : undefined })))).items;
+          part.forEach((r, k) => {
+            r.key = items[k].key; r.pdfOk = false; keys.push(r.key); undoState.created.push(r.key);
+            counts.added++; counts.notes += r.notes.length;
+            status(r, r.pdfs.length ? "Added, adding PDF…" : "Added, no PDF", r.pdfs.length ? "" : "ok");
+          });
         } catch (e) { part.forEach((r) => { counts.failed++; status(r, e.message, "err"); }); }
       }
-      // papers already in the library get only the tags and projects they don't have
+      // papers already here get only the tags, projects and notes they don't have
       for (const r of plan.records.filter((x) => x.have)) {
         if (stopped) break;
         let item = r.have;
@@ -752,84 +783,146 @@ export function openImportLibrary({ onDone } = {}) {
         const patch = {};
         if (t.length > (item.tags || []).length) patch.tags = t;
         if (p.length > (item.projects || []).length) patch.projects = p;
-        try { if (Object.keys(patch).length) item = (await api.patchItem(item.key, patch)).item; }
-        catch (e) { status(r, e.message, "err"); continue; }
+        try {
+          if (Object.keys(patch).length) {
+            undoState.patched.push({ key: item.key, before: { tags: item.tags || [], projects: item.projects || [] }, after: { tags: t, projects: p } });
+            item = (await api.patchItem(item.key, patch)).item;
+          }
+          if (r.notes.length) {
+            const cur = await api.getNotes(item.key);
+            const add = r.notes.filter((n) => !(cur.text || "").includes(n));
+            if (add.length) { await api.saveNotes(item.key, [cur.text || "", ...add].filter(Boolean).join("\n\n"), cur.rev || 0); counts.notes += add.length; }
+          }
+        } catch (e) { status(r, e.message, "err"); continue; }
         r.key = item.key; r.pdfOk = !!(item.attachments || []).length; keys.push(r.key);
-        status(r, "Already here", "ok");
+        status(r, r.pdfOk || !r.pdfs.length ? "Already here" : "Already here, adding PDF…", r.pdfOk || !r.pdfs.length ? "ok" : "");
       }
-      // then the PDFs (with the marks inside them) and notes
-      const work = plan.records.filter((r) => r.key && ((!r.pdfOk && r.pdfs.length) || r.notes.length));
-      const total = work.length + plan.loose.length;
-      let done = 0;
-      const tick = () => { done++; sum.textContent = `Adding PDFs and notes… ${done} of ${total}`; };
-      for (const r of work) {
-        if (stopped) break;
-        status(r, "Adding PDF…");
-        r.row.scrollIntoView({ block: "nearest" });
-        try { await finishRecord(r, withTypes); } catch (e) { counts.failed++; status(r, e.message, "err"); }
-        tick();
+      for (const pr of undoState.projects) pr.members = plan.records.filter((r) => r.key && projOf(r).includes(pr.id)).map((r) => r.key);
+
+      // 4. the PDFs, with their marks: twelve to a request, so Stop takes effect between requests
+      const todo = [];
+      for (const r of plan.records) if (r.key && !r.pdfOk) for (const pdf of r.pdfs) todo.push({ r, pdf });
+      let sent = 0;
+      for (let i = 0; i < todo.length && !stopped; i += 12) {
+        const part = todo.slice(i, i + 12);
+        sum.textContent = `Adding PDFs… ${sent} of ${todo.length}`;
+        let res;
+        try { res = (await api.addAttachments(part.map(({ r, pdf }) => ({ key: r.key, file: pdf.file, label: pdf.label || "", marks: pdf.marks || [] })))).results; }
+        catch (e) { part.forEach(({ r }) => { counts.failed++; status(r, e.message, "err"); }); continue; }
+        part.forEach(({ r }, k) => {
+          const x = res[k];
+          if (x.attachment) {
+            r.pdfOk = true; counts.pdfs++; r.nMarks = (r.nMarks || 0) + (x.marks || 0); counts.marks += x.marks || 0;
+            if (r.have) undoState.attached.push({ key: r.key, att: x.attachment.key, file: part[k].pdf.file, label: part[k].pdf.label || "", marks: part[k].pdf.marks || [] });
+          }
+          else if (!x.duplicate) { r.pdfErr = x.error; counts.failed++; }
+        });
+        sent += part.length;
+        for (const { r } of part) {
+          if (r.pdfErr) { status(r, r.pdfErr, "err"); continue; }
+          status(r, [r.have ? "Already here" : "Added", "PDF", r.nMarks ? plural(r.nMarks, "mark", "marks") : ""].filter(Boolean).join(", "), "ok");
+        }
       }
-      for (const x of plan.loose) {
-        if (stopped) break;
-        status(x, "Importing…");
+
+      // 5. a folder of PDFs only: each PDF names its paper (title, DOI) the way Add PDF does
+      let loose = 0;
+      await runPool(plan.loose.map((x) => async () => {
+        if (stopped) return;
+        status(x, "Adding…");
         try {
           const j = await api.importFile(x.file, x.folder ? projectOf.get("dir:" + x.folder) : null);
           keys.push(j.item.key);
-          if (j.duplicate) { counts.have++; status(x, "Already in your library", "ok"); }
-          else {
-            counts.added++; counts.pdfs++;
-            const att = store.primaryAtt(j.item) || (j.item.attachments || [])[0];
-            const marks = att ? await withTypes(x.file) : [];
-            if (marks.length) { await api.saveMarks(j.item.key, att.key, marks, 0); counts.marks += marks.length; }
-            status(x, marks.length ? `Added, ${marks.length} marks` : "Added", "ok");
-          }
+          if (j.duplicate) { counts.have++; status(x, "Already in your library", "ok"); return; }
+          undoState.created.push(j.item.key);
+          counts.added++; counts.pdfs++;
+          const att = (j.item.attachments || [])[0];
+          if (att && x.marks && x.marks.length) { await api.saveMarks(j.item.key, att.key, x.marks, 0); counts.marks += x.marks.length; }
+          status(x, ["Added", "PDF", x.marks && x.marks.length ? plural(x.marks.length, "mark", "marks") : ""].filter(Boolean).join(", "), "ok");
         } catch (e) { counts.failed++; status(x, e.message, "err"); }
-        tick();
-      }
-      if (optFetch.checked && !stopped) {
-        const todo = plan.records.filter((r) => r.key && !r.pdfOk && (r.meta.arxiv || r.meta.doi));
-        let i = 0, got = 0;
-        const worker = async () => {
-          while (!stopped && i < todo.length) {
-            const r = todo[i++];
-            status(r, "Looking for a PDF…");
-            try { await api.fetchAttachment(r.key, r.meta.arxiv || r.meta.doi, r.meta.arxiv ? "arXiv preprint" : "PDF"); r.pdfOk = true; got++; counts.pdfs++; status(r, "Added, PDF downloaded", "ok"); }
-            catch (_) { status(r, r.have ? "In your library, no PDF" : "Added, no PDF", "ok"); }
-            sum.textContent = `Looking for missing PDFs… ${i} of ${todo.length}`;
-          }
-        };
-        await Promise.all([worker(), worker(), worker()]);
-      }
+        loose++; sum.textContent = `Adding PDFs… ${loose} of ${plan.loose.length}`;
+      }), 4);
     } finally {
+      for (const r of plan.records) if (r.key && !r.pdfOk && r.pdfs.length && !r.pdfErr) status(r, r.have ? "Already here, no PDF" : "Added, no PDF", "ok");
+      for (const r of plan.records) if (!r.key && !r.st.classList.contains("is-err") && stopped) status(r, "Not imported", "err");
       running = false;
+      recordUndo();
       await store.load().catch(() => {});
-      const missing = plan.records.filter((r) => r.key && !r.pdfOk).length;
-      sum.textContent = [`${counts.added} added`, counts.have ? `${counts.have} already here` : "", `${counts.pdfs} PDFs`, `${counts.marks} marks`,
-        counts.notes ? `${counts.notes} notes` : "", counts.failed ? `${counts.failed} failed` : "", missing ? `${missing} without a PDF` : ""].filter(Boolean).join(", ") + (stopped ? ". Stopped." : ".");
-      copyMissing.hidden = !missing;
+      finishSummary(performance.now() - t0);
       cancel.hidden = true; go.disabled = false; go.textContent = "Done"; go.dataset.done = "1";
     }
   }
-  async function finishRecord(r, withTypes) {
-    let nMarks = 0;
-    // a paper that was already here keeps its PDFs; a new one gets every PDF the export had
-    if (!r.pdfOk) for (const pdf of r.pdfs) {
-      const marks = withTypes(pdf.file);     // read the highlights while the PDF uploads
-      marks.catch(() => {});
-      let j;
-      try { j = await api.addAttachmentFile(r.key, pdf.file, pdf.label || ""); }
-      catch (e) { if (/already attached/i.test(e.message)) continue; throw e; }   // the same file twice in the export
-      counts.pdfs++; r.pdfOk = true;
-      const list = await marks.catch(() => []);
-      if (list.length) { await api.saveMarks(r.key, j.attachment.key, list, 0); nMarks += list.length; }
-    }
-    counts.marks += nMarks;
-    if (r.notes.length) {
-      const cur = await api.getNotes(r.key);
-      const add = r.notes.filter((n) => !(cur.text || "").includes(n));
-      if (add.length) { await api.saveNotes(r.key, [cur.text || "", ...add].filter(Boolean).join("\n\n"), cur.rev || 0); counts.notes += add.length; }
-    }
-    status(r, [r.have ? "Already here" : "Added", r.pdfOk && !r.have ? "PDF" : "", nMarks ? `${nMarks} marks` : "", !r.pdfOk ? "no PDF yet" : ""].filter(Boolean).join(", "), "ok");
+  function finishSummary(ms) {
+    const missing = plan.records.filter((r) => r.key && !r.pdfOk);
+    const parts = [plural(counts.added, "paper added", "papers added"), counts.have ? `${counts.have} already here` : "",
+      plural(counts.pdfs, "PDF", "PDFs"), counts.marks ? plural(counts.marks, "mark", "marks") : "", counts.notes ? plural(counts.notes, "note", "notes") : "",
+      counts.failed ? `${counts.failed} failed` : ""].filter(Boolean);
+    const nothing = !counts.added && !counts.pdfs && !counts.failed && counts.have;
+    sum.textContent = (stopped ? "Stopped. " : "") + (nothing ? `All ${plural(counts.have, "paper is", "papers are")} already in your library.` : parts.join(", ") + (ms ? ` in ${(ms / 1000).toFixed(1)} s.` : "."))
+      + (missing.length ? ` ${plural(missing.length, "paper has", "papers have")} no PDF.` : "") + (undoState.created.length ? " ⌘Z undoes the import." : "");
+    copyMissing.hidden = !missing.length;
+    findPdfs.hidden = !missing.some((r) => r.meta.arxiv || r.meta.doi);
+  }
+  // ⌘Z moves the imported papers to the Trash and takes back the projects and tags it added; ⌘⇧Z puts it all back
+  function recordUndo() {
+    const U = undoState;
+    if (!U.created.length && !U.patched.length && !U.projects.length && !U.attached.length) return;
+    const n = U.created.length;
+    const reload = () => store.load();
+    undoLog.record({
+      label: n ? `the import of ${plural(n, "paper", "papers")}` : "the import",
+      // the colour mark types stay (they are hidden, and the trashed papers' marks still use them)
+      undo: async () => {
+        try {
+          if (U.created.length) await api.bulk({ keys: U.created, trash: true });
+          for (const a of U.attached) await api.removeAttachment(a.key, a.att);
+          for (const p of U.patched) await api.patchItem(p.key, p.before);
+          for (const pr of [...U.projects].reverse()) await api.deleteProject(pr.id);
+        } finally { await reload(); }
+      },
+      redo: async () => {
+        try {
+          if (U.created.length) await api.bulk({ keys: U.created, restore: true });
+          if (U.attached.length) {
+            const res = (await api.addAttachments(U.attached.map((a) => ({ key: a.key, file: a.file, label: a.label, marks: a.marks })))).results;
+            U.attached.forEach((a, i) => { if (res[i].attachment) a.att = res[i].attachment.key; });
+          }
+          const idMap = new Map();
+          for (const pr of U.projects) {
+            const p = (await api.createProject(pr.name, pr.parent ? idMap.get(pr.parent) || pr.parent : null)).project;
+            idMap.set(pr.id, p.id);
+          }
+          const remap = (ids) => ids.map((x) => idMap.get(x) || x);
+          for (const p of U.patched) { p.after.projects = remap(p.after.projects); await api.patchItem(p.key, p.after); }
+          for (const pr of U.projects) {
+            const members = pr.members.filter((k) => !U.patched.some((p) => p.key === k));
+            if (members.length) await api.bulk({ keys: members, addProjects: [idMap.get(pr.id)] });
+          }
+          for (const pr of U.projects) { pr.parent = pr.parent ? idMap.get(pr.parent) || pr.parent : null; pr.id = idMap.get(pr.id); }
+        } finally { await reload(); }
+      },
+    });
+  }
+  async function fetchMissing() {
+    const todo = plan.records.filter((r) => r.key && !r.pdfOk && (r.meta.arxiv || r.meta.doi));
+    findPdfs.disabled = true; go.disabled = true; running = true; stopped = false;
+    cancel.hidden = false; cancel.disabled = false; cancel.textContent = "Stop";
+    let i = 0, done = 0, got = 0;
+    const worker = async () => {
+      while (!stopped && i < todo.length) {
+        const r = todo[i++];
+        status(r, "Looking for a PDF…");
+        try { await api.fetchAttachment(r.key, r.meta.arxiv || r.meta.doi, r.meta.arxiv ? "arXiv preprint" : "PDF"); r.pdfOk = true; got++; counts.pdfs++; status(r, "Added, PDF downloaded", "ok"); }
+        catch (_) { status(r, r.have ? "Already here, no free PDF found" : "Added, no free PDF found", "ok"); }
+        done++; sum.textContent = `Looking for free PDFs… ${done} of ${todo.length}, ${got} found`;
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    for (const r of todo) if (r.st.textContent === "Looking for a PDF…") status(r, r.have ? "Already here, no PDF" : "Added, no PDF", "ok");
+    running = false;
+    await store.load().catch(() => {});
+    finishSummary(0);
+    sum.textContent = `${got} of ${todo.length} PDFs found online. ` + sum.textContent;
+    cancel.hidden = true; go.disabled = false; findPdfs.disabled = false;
   }
   async function copyList() {
     const lines = plan.records.filter((r) => r.key && !r.pdfOk).map((r) => [r.meta.title, r.meta.doi ? "doi:" + r.meta.doi : r.meta.arxiv ? "arXiv:" + r.meta.arxiv : r.meta.url].filter(Boolean).join("  "));

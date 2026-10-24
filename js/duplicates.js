@@ -12,6 +12,8 @@ function idKeys(it) {
   if (it.arxiv) out.push("arxiv:" + it.arxiv.toLowerCase().replace(/v\d+$/, ""));
   const t = norm(it.title);
   if (t.length >= 20) out.push("t:" + t + ":" + (it.year || ""));
+  // a short title counts with its year and first author
+  if (t) out.push("ta:" + t + ":" + (it.year || "") + ":" + norm(((it.authors || [])[0] || {}).family || ""));
   return out;
 }
 

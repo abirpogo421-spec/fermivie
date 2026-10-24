@@ -65,6 +65,13 @@ async function toBytes(data) {
   throw new TypeError("PDF data must be a Uint8Array, an ArrayBuffer or a Blob");
 }
 
+// run the jobs (functions returning promises) n at a time; the first error stops the rest and is thrown
+async function pool(jobs, n) {
+  let i = 0;
+  const run = async () => { while (i < jobs.length) { const job = jobs[i++]; await job(); } };
+  await Promise.all(Array.from({ length: Math.min(n, jobs.length) }, run));
+}
+
 export class Library {
   constructor(fs, { libraryId = "" } = {}) {
     this.fs = fs;
@@ -294,7 +301,7 @@ export class Library {
   }
 
   /** Many papers at once (a library import), with one save of library.json for all of them.
-   *  entries: [{meta, tags?, projects?}] -> the new items, in order (library_store.create_items). */
+   *  entries: [{meta, tags?, projects?, notes?}] -> the new items, in order (library_store.create_items). */
   async createItems(entries) {
     entries = asJson(entries);
     return this.withLock(async () => {
@@ -311,8 +318,54 @@ export class Library {
         assign(lib.items, k, it);
         out.push(deepCopy(it));
       }
+      for (const e of entries) {
+        const n = py.pg(e, "notes");
+        if (n !== null && n !== undefined && typeof n !== "string") throw bad("text must be a string.");
+      }
       await this.saveUnlocked(lib);
+      await pool(out.map((it, i) => () => (py.truthy(py.pg(entries[i], "notes")) ? this.saveNotesUnlocked("item", it.key, entries[i].notes, 0) : null)), 6);
       return out;
+    });
+  }
+
+  /** Many PDFs at once (a library import): the PDFs are written side by side and library.json is saved once.
+   *  entries: [{key, data (Blob or bytes), label?, marks?}] -> [{key, attachment, marks?} | {key, error}], in order.
+   *  The browser back end's own call (the local app uploads PDFs one by one, where each is quick). */
+  async addAttachmentsBatch(entries) {
+    return this.withLock(async () => {
+      const lib = await this.loadUnlocked();
+      const out = [], jobs = [];
+      for (const e of entries) {
+        try {
+          const it = this.getItem(lib, e.key);
+          const bytes = await toBytes(e.data);
+          const sha = await sha256Hex(bytes);
+          if (atts(it).some((a) => py.eq(py.pg(a, "sha256"), sha))) throw new StoreError(409, "That PDF is already attached to this paper.", { duplicate: true });
+          const att = await this._newAttKey(it, e.label || "", null);
+          const a = { key: att, label: e.label ? e.label : att, file: `${att}.pdf`, source: "file", url: "", added: nowIso(), bytes: bytes.length, sha256: sha, pages: 0 };
+          if (!py.has(it, "attachments")) assign(it, "attachments", []);
+          it.attachments.push(a);
+          if (!py.truthy(py.pg(it, "primary"))) assign(it, "primary", att);
+          assign(it, "modified", nowIso());
+          const r = { key: e.key, attachment: a };
+          out.push(r);
+          jobs.push(async () => {
+            const dest = `${this.itemDir(e.key)}/${att}.pdf`;
+            await this.fs.write(dest, bytes);
+            const st = await this.fs.stat(dest);
+            if (st) a.bytes = st.size;
+          });
+        } catch (err) {
+          if (!(err instanceof StoreError)) throw err;
+          out.push({ key: e.key, error: err.message, duplicate: !!(err.extra && err.extra.duplicate) });
+        }
+      }
+      await pool(jobs, 6);
+      await this.saveUnlocked(lib);
+      await pool(out.map((r, i) => () => (r.attachment && Array.isArray(entries[i].marks) && entries[i].marks.length
+        ? this.saveMarksUnlocked(r.key, r.attachment.key, entries[i].marks, 0).then((m) => { r.marks = m.marks.length; })
+        : null)), 4);
+      return out.map((r) => deepCopy(r));
     });
   }
 

@@ -274,6 +274,12 @@ export async function createBrowserApi(storage, opts = {}) {
     importFile: (file, project) => call("POST", "/api/import/file?" + qs({ name: file.name, project }), file),
     createItem: (meta, project) => call("POST", "/api/items", { meta, project: project || undefined }),
     createItems: (items) => call("POST", "/api/items/batch", { items }),
+    // many PDFs in one save of the library (see api.addAttachments); not an HTTP route, the files stay Blobs
+    addAttachments: async (entries) => {
+      const results = await lib.addAttachmentsBatch(entries.map((e) => ({ key: e.key, data: e.file, label: e.label || "", marks: e.marks || null })));
+      ctx.changed();
+      return { ok: true, results: JSON.parse(JSON.stringify(results)) };
+    },
     patchItem: (key, patch) => call("PATCH", `/api/items/${enc(key)}`, patch),
     enrich: (key, input, overwrite = false) => call("POST", `/api/items/${enc(key)}/enrich`, { input, overwrite }),
     trash: (key) => call("POST", `/api/items/${enc(key)}/trash`),

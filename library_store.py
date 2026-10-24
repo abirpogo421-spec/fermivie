@@ -611,7 +611,7 @@ class Library:
 
     def create_items(self, entries):
         """Many papers at once (a library import), with one save of library.json for all of them.
-        entries: [{meta, tags?, projects?}] -> the new items, in order."""
+        entries: [{meta, tags?, projects?, notes?}] -> the new items, in order."""
         if not isinstance(entries, list) or not entries:
             raise bad("Send a list of papers.")
         with self.lock:
@@ -629,7 +629,13 @@ class Library:
                 os.makedirs(self.item_dir(k), exist_ok=True)
                 lib["items"][k] = it
                 out.append(copy.deepcopy(it))
+            for e in entries:
+                if e.get("notes") is not None and not isinstance(e.get("notes"), str):
+                    raise bad("text must be a string.")
             self.save(lib)
+            for it, e in zip(out, entries):
+                if e.get("notes"):
+                    self.save_notes("item", it["key"], e["notes"], 0)
             return out
 
     def _validate_patch(self, lib, it, patch):

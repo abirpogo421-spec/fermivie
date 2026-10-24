@@ -56,6 +56,28 @@ export const api = {
   importFile: (file, project) => req("POST", "/api/import/file?" + qs({ name: file.name, project }), file),
   createItem: (meta, project) => req("POST", "/api/items", { meta, project: project || undefined }),
   createItems: (items) => req("POST", "/api/items/batch", { items }),
+  // [{key, file, label, marks?}] -> {results: [{key, attachment, marks?} | {key, error, duplicate?}]}. The local
+  // server takes PDFs one per request (each is quick there); the browser back end saves a whole batch at once.
+  addAttachments: async (entries) => {
+    const results = new Array(entries.length);
+    let i = 0;
+    const run = async () => {
+      while (i < entries.length) {
+        const n = i++, e = entries[n];
+        try {
+          const j = await api.addAttachmentFile(e.key, e.file, e.label || "");
+          const r = { key: e.key, attachment: j.attachment };
+          if (e.marks && e.marks.length) r.marks = (await api.saveMarks(e.key, j.attachment.key, e.marks, 0)).marks.length;
+          results[n] = r;
+        } catch (err) {
+          if (err.status >= 500 || !err.status) throw err;
+          results[n] = { key: e.key, error: err.message, duplicate: !!(err.payload && err.payload.duplicate) };
+        }
+      }
+    };
+    await Promise.all([run(), run(), run(), run()]);
+    return { ok: true, results };
+  },
   patchItem: (key, patch) => req("PATCH", `/api/items/${enc(key)}`, patch),
   enrich: (key, input, overwrite = false) => req("POST", `/api/items/${enc(key)}/enrich`, { input, overwrite }),
   trash: (key) => req("POST", `/api/items/${enc(key)}/trash`),
