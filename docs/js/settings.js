@@ -217,7 +217,13 @@ function sectionLibrary(S, save, ctx, rerender) {
   const watching = new Set((((store.about || {}).watching) || []).map(norm));
   const known = !!(store.about && store.about.watching);
   const expand = (d) => norm(d.replace(/^~(?=[\\/]|$)/, home)).replace(/(.)[\\/]+$/, "$1");
+  const importLib = async () => {
+    const m = await import("./importlib.js");
+    m.openImportLibrary({ onDone: (keys) => { location.hash = "#/library"; setTimeout(() => store.emit("reveal", { keys }), 0); } });
+  };
   return [
+    row("Import a library", h("button", { class: "btn", onclick: () => importLib().catch((e) => ui.toast(e.message, { error: true })) }, "Import Library…"),
+      hint("From Zotero, Mendeley, EndNote, JabRef, Paperpile and others. Papers already in your library are not added twice.")),
     row("Default version", radios(L.preferJournal !== false ? "journal" : "arxiv", [
       ["journal", "Journal version", "When a paper is published, new imports open the journal PDF first."],
       ["arxiv", "arXiv version", "New imports open the arXiv PDF first. The journal PDF is still added if one is found."],
