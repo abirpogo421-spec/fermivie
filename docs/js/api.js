@@ -55,6 +55,7 @@ export const api = {
   import: (input, project) => req("POST", "/api/import", { input, project: project || undefined }),
   importFile: (file, project) => req("POST", "/api/import/file?" + qs({ name: file.name, project }), file),
   createItem: (meta, project) => req("POST", "/api/items", { meta, project: project || undefined }),
+  createItems: (items) => req("POST", "/api/items/batch", { items }),
   patchItem: (key, patch) => req("PATCH", `/api/items/${enc(key)}`, patch),
   enrich: (key, input, overwrite = false) => req("POST", `/api/items/${enc(key)}/enrich`, { input, overwrite }),
   trash: (key) => req("POST", `/api/items/${enc(key)}/trash`),

@@ -293,6 +293,29 @@ export class Library {
     return deepCopy(it);
   }
 
+  /** Many papers at once (a library import), with one save of library.json for all of them.
+   *  entries: [{meta, tags?, projects?}] -> the new items, in order (library_store.create_items). */
+  async createItems(entries) {
+    entries = asJson(entries);
+    return this.withLock(async () => {
+      if (!Array.isArray(entries) || !entries.length) throw bad("Send a list of papers.");
+      const lib = await this.loadUnlocked();
+      const ids = this.projectIds(lib), out = [];
+      for (const e of entries) {
+        if (!py.isDict(e) || !py.isDict(py.pg(e, "meta"))) throw bad("meta must be an object.");
+        const projects = py.pg(e, "projects") ?? [];
+        if (!Array.isArray(projects) || projects.some((p) => !ids.has(p))) throw bad("That project does not exist.");
+        const k = await this._uniqueKey(lib, citekey(itemMeta(cleanMeta(e.meta))));
+        const it = newItem(k, e.meta, [...new Set(projects)], py.pg(e, "tags") || []);
+        await this.fs.mkdirp(this.itemDir(k));
+        assign(lib.items, k, it);
+        out.push(deepCopy(it));
+      }
+      await this.saveUnlocked(lib);
+      return out;
+    });
+  }
+
   _validatePatch(lib, it, patch) {
     if (!py.isDict(patch) || !py.truthy(patch)) throw bad("Nothing to change.");
     const out = {};

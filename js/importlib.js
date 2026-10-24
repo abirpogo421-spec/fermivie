@@ -731,14 +731,42 @@ export function openImportLibrary({ onDone } = {}) {
         marks.forEach((m) => (m.type = typeFor(m.type)));
         return marks;
       };
-      const total = plan.records.length + plan.loose.length;
-      let done = 0;
-      const tick = () => { done++; sum.textContent = `Importing… ${done} of ${total}`; };
-      for (const r of plan.records) {
+      // all the new papers in a few requests, so the library file is saved a few times instead of once per paper
+      const tagsOf = (r) => [...r.tags, ...(optAuto.checked ? r.autoTags : [])];
+      const projOf = (r) => [...new Set(r.collections.map((c) => projectOf.get(c)).filter(Boolean))];
+      const fresh = plan.records.filter((r) => !r.have);
+      if (fresh.length) sum.textContent = `Adding ${fresh.length} papers…`;
+      for (let i = 0; i < fresh.length && !stopped; i += 250) {
+        const part = fresh.slice(i, i + 250);
+        try {
+          const items = (await api.createItems(part.map((r) => ({ meta: r.meta, tags: tagsOf(r), projects: projOf(r) })))).items;
+          part.forEach((r, k) => { r.key = items[k].key; r.pdfOk = false; keys.push(r.key); counts.added++; status(r, "Added", "ok"); });
+        } catch (e) { part.forEach((r) => { counts.failed++; status(r, e.message, "err"); }); }
+      }
+      // papers already in the library get only the tags and projects they don't have
+      for (const r of plan.records.filter((x) => x.have)) {
         if (stopped) break;
-        status(r, "Importing…");
+        let item = r.have;
+        counts.have++;
+        const t = [...new Set([...(item.tags || []), ...tagsOf(r)])], p = [...new Set([...(item.projects || []), ...projOf(r)])];
+        const patch = {};
+        if (t.length > (item.tags || []).length) patch.tags = t;
+        if (p.length > (item.projects || []).length) patch.projects = p;
+        try { if (Object.keys(patch).length) item = (await api.patchItem(item.key, patch)).item; }
+        catch (e) { status(r, e.message, "err"); continue; }
+        r.key = item.key; r.pdfOk = !!(item.attachments || []).length; keys.push(r.key);
+        status(r, "Already here", "ok");
+      }
+      // then the PDFs (with the marks inside them) and notes
+      const work = plan.records.filter((r) => r.key && ((!r.pdfOk && r.pdfs.length) || r.notes.length));
+      const total = work.length + plan.loose.length;
+      let done = 0;
+      const tick = () => { done++; sum.textContent = `Adding PDFs and notes… ${done} of ${total}`; };
+      for (const r of work) {
+        if (stopped) break;
+        status(r, "Adding PDF…");
         r.row.scrollIntoView({ block: "nearest" });
-        try { await importRecord(r, projectOf, withTypes); } catch (e) { counts.failed++; status(r, e.message, "err"); }
+        try { await finishRecord(r, withTypes); } catch (e) { counts.failed++; status(r, e.message, "err"); }
         tick();
       }
       for (const x of plan.loose) {
@@ -782,41 +810,26 @@ export function openImportLibrary({ onDone } = {}) {
       cancel.hidden = true; go.disabled = false; go.textContent = "Done"; go.dataset.done = "1";
     }
   }
-  async function importRecord(r, projectOf, withTypes) {
-    const tags = [...r.tags, ...(optAuto.checked ? r.autoTags : [])];
-    const projects = r.collections.map((c) => projectOf.get(c)).filter(Boolean);
-    let item = r.have;
-    if (item) {
-      counts.have++;
-      const patch = {};
-      const t = [...new Set([...(item.tags || []), ...tags])], p = [...new Set([...(item.projects || []), ...projects])];
-      if (t.length > (item.tags || []).length) patch.tags = t;
-      if (p.length > (item.projects || []).length) patch.projects = p;
-      if (Object.keys(patch).length) item = (await api.patchItem(item.key, patch)).item;
-    } else {
-      item = (await api.createItem(r.meta)).item;
-      counts.added++;
-      if (tags.length || projects.length) item = (await api.patchItem(item.key, { tags, projects })).item;
-    }
-    r.key = item.key; keys.push(item.key);
-    r.pdfOk = !!(item.attachments || []).length;
+  async function finishRecord(r, withTypes) {
     let nMarks = 0;
-    // an existing paper keeps its PDFs; a new one gets every PDF the export had
+    // a paper that was already here keeps its PDFs; a new one gets every PDF the export had
     if (!r.pdfOk) for (const pdf of r.pdfs) {
+      const marks = withTypes(pdf.file);     // read the highlights while the PDF uploads
+      marks.catch(() => {});
       let j;
-      try { j = await api.addAttachmentFile(item.key, pdf.file, pdf.label || ""); }
+      try { j = await api.addAttachmentFile(r.key, pdf.file, pdf.label || ""); }
       catch (e) { if (/already attached/i.test(e.message)) continue; throw e; }   // the same file twice in the export
       counts.pdfs++; r.pdfOk = true;
-      const marks = await withTypes(pdf.file);
-      if (marks.length) { await api.saveMarks(item.key, j.attachment.key, marks, 0); nMarks += marks.length; }
+      const list = await marks.catch(() => []);
+      if (list.length) { await api.saveMarks(r.key, j.attachment.key, list, 0); nMarks += list.length; }
     }
     counts.marks += nMarks;
     if (r.notes.length) {
-      const cur = await api.getNotes(item.key);
+      const cur = await api.getNotes(r.key);
       const add = r.notes.filter((n) => !(cur.text || "").includes(n));
-      if (add.length) { await api.saveNotes(item.key, [cur.text || "", ...add].filter(Boolean).join("\n\n"), cur.rev || 0); counts.notes += add.length; }
+      if (add.length) { await api.saveNotes(r.key, [cur.text || "", ...add].filter(Boolean).join("\n\n"), cur.rev || 0); counts.notes += add.length; }
     }
-    status(r, [r.have ? "Already here" : "Added", r.pdfs.length && !r.have ? "PDF" : "", nMarks ? `${nMarks} marks` : "", !r.pdfOk ? "no PDF yet" : ""].filter(Boolean).join(", "), "ok");
+    status(r, [r.have ? "Already here" : "Added", r.pdfOk && !r.have ? "PDF" : "", nMarks ? `${nMarks} marks` : "", !r.pdfOk ? "no PDF yet" : ""].filter(Boolean).join(", "), "ok");
   }
   async function copyList() {
     const lines = plan.records.filter((r) => r.key && !r.pdfOk).map((r) => [r.meta.title, r.meta.doi ? "doi:" + r.meta.doi : r.meta.arxiv ? "arXiv:" + r.meta.arxiv : r.meta.url].filter(Boolean).join("  "));

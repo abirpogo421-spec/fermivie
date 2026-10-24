@@ -98,6 +98,7 @@ async function api(ctx, m, s, q, body) {
     if (!py.isDict(py.pg(b, "meta"))) throw bad("meta must be an object.");
     return ok({ item: await L.createItem(b.meta, { project: or(py.pg(b, "project"), null) }) });
   }
+  if (m === "POST" && same(s, ["items", "batch"])) return ok({ items: await L.createItems(py.pg(json(), "items")) });
   if (m === "POST" && same(s, ["items", "bulk"])) return ok({ items: await L.bulk(json()) });
   if (m === "POST" && same(s, ["trash", "empty"])) return ok({ moved: await L.emptyTrash() });
   if (m === "POST" && same(s, ["projects"])) {

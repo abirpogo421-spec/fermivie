@@ -735,6 +735,8 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(b.get("meta"), dict):
                 raise bad("meta must be an object.")
             return self._ok(item=store.create_item(b["meta"], project=b.get("project") or None))
+        if m == "POST" and s == ["items", "batch"]:
+            return self._ok(items=store.create_items(self._body_json().get("items")))
         if m == "POST" and s == ["items", "bulk"]:
             return self._ok(items=store.bulk(self._body_json()))
         if m == "POST" and s == ["trash", "empty"]:

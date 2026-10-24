@@ -273,6 +273,7 @@ export async function createBrowserApi(storage, opts = {}) {
     import: (input, project) => call("POST", "/api/import", { input, project: project || undefined }),
     importFile: (file, project) => call("POST", "/api/import/file?" + qs({ name: file.name, project }), file),
     createItem: (meta, project) => call("POST", "/api/items", { meta, project: project || undefined }),
+    createItems: (items) => call("POST", "/api/items/batch", { items }),
     patchItem: (key, patch) => call("PATCH", `/api/items/${enc(key)}`, patch),
     enrich: (key, input, overwrite = false) => call("POST", `/api/items/${enc(key)}/enrich`, { input, overwrite }),
     trash: (key) => call("POST", `/api/items/${enc(key)}/trash`),

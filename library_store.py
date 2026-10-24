@@ -609,6 +609,29 @@ class Library:
             self.save(lib)
             return copy.deepcopy(it)
 
+    def create_items(self, entries):
+        """Many papers at once (a library import), with one save of library.json for all of them.
+        entries: [{meta, tags?, projects?}] -> the new items, in order."""
+        if not isinstance(entries, list) or not entries:
+            raise bad("Send a list of papers.")
+        with self.lock:
+            lib = self.load()
+            ids = self.project_ids(lib)
+            out = []
+            for e in entries:
+                if not isinstance(e, dict) or not isinstance(e.get("meta"), dict):
+                    raise bad("meta must be an object.")
+                projects = e.get("projects") or []
+                if not isinstance(projects, list) or any(p not in ids for p in projects):
+                    raise bad("That project does not exist.")
+                k = self._unique_key(lib, importers.citekey(item_meta(clean_meta(e["meta"]))))
+                it = new_item(k, e["meta"], list(dict.fromkeys(projects)), e.get("tags") or ())
+                os.makedirs(self.item_dir(k), exist_ok=True)
+                lib["items"][k] = it
+                out.append(copy.deepcopy(it))
+            self.save(lib)
+            return out
+
     def _validate_patch(self, lib, it, patch):
         if not isinstance(patch, dict) or not patch:
             raise bad("Nothing to change.")
