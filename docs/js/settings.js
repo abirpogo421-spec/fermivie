@@ -230,7 +230,7 @@ function sectionLibrary(S, save, ctx, rerender) {
     ], (v) => save({ library: { preferJournal: v === "journal" } }))),
     row("No free PDF", check("Use the arXiv preprint when the journal's PDF can't be downloaded", L.preprintFallback !== false,
       (v) => save({ library: { preprintFallback: v } }),
-      "For a paywalled paper, Paper Marker finds the arXiv version by title and authors and adds that.")),
+      "For a paywalled paper, Fermivie finds the arXiv version by title and authors and adds that.")),
     api.mode === "browser" ? watchFoldersWeb(rerender) : row("Folders to check", listEditor(L.watchDirs || [], {
       placeholder: "~/Downloads",
       note: (d) => (known && !watching.has(expand(d)) ? "Not found" : ""),
@@ -296,11 +296,11 @@ const loadedText = (s) => `Loaded ${s.added} papers, ${s.projects} projects, ${s
 function sectionProfile(S, save, ctx, rerender) {
   if (api.mode === "browser") return sectionProfileWeb(S, save, ctx, rerender);
   const box = el("div", "st-profile");
-  box.append(hint("Your profile is a folder with a copy of your library and settings, including the PDFs. Paper Marker saves into it after every change. Load it on another computer or in a fresh copy of Paper Marker to get everything back. It can live on a synced drive, a USB stick or in a private GitHub repository."));
+  box.append(hint("Your profile is a folder with a copy of your library and settings, including the PDFs. Fermivie saves into it after every change. Load it on another computer or in a fresh copy of Fermivie to get everything back. It can live on a synced drive, a USB stick or in a private GitHub repository."));
   const slot = el("div"); box.append(slot);
   const draw = (P) => {
     slot.textContent = "";
-    const path = h("input", { class: "input st-path", placeholder: "~/Documents/Paper Marker profile", value: P.folder || "", spellcheck: false, "aria-label": "Profile folder" });
+    const path = h("input", { class: "input st-path", placeholder: "~/Documents/Fermivie profile", value: P.folder || "", spellcheck: false, "aria-label": "Profile folder" });
     const connect = async (folder, replace = false) => {
       if (!folder) return;
       try { draw((await api.profileAct("connect", { folder, replace })).profile); ui.toast("Profile folder connected and saved."); }
@@ -311,7 +311,7 @@ function sectionProfile(S, save, ctx, rerender) {
         } else ui.toast(e.message, { error: true, ms: 8000 });
       }
     };
-    const pick = h("button", { class: "btn", onclick: async () => { const f = await chooseFolder("Choose a folder for your Paper Marker profile"); if (f) connect(f); } }, P.folder ? "Change…" : "Choose folder…");
+    const pick = h("button", { class: "btn", onclick: async () => { const f = await chooseFolder("Choose a folder for your Fermivie profile"); if (f) connect(f); } }, P.folder ? "Change…" : "Choose folder…");
     const use = h("button", { class: "btn", onclick: () => connect(path.value.trim()) }, "Use this path");
     const state = P.folder
       ? el("div", "st-hint", (P.saving ? "Saving… " : "") + "Last saved " + when(P.lastSaved) + (P.lastError ? ". Problem: " + P.lastError : "") + (P.git && P.gitResult ? ". Git: " + P.gitResult : "") + "  ·  " + P.folder)
@@ -352,7 +352,7 @@ function sectionAbout() {
       hint("Papers, marks and notes are plain files here. Settings are in settings.json.")),
     row("Contents", el("div", "st-plain num", [n(items.length, "paper", "papers"), n(pdfs, "PDF", "PDFs"), n(marks, "mark", "marks"),
       n(store.lib.projects.length, "project", "projects"), n(trashed.length, "paper in the Trash", "papers in the Trash")].join(" · "))),
-    row("Version", el("div", "st-plain", "Paper Marker " + (a.version || "2") + (a.port ? ` · localhost:${a.port}` : ""))),
+    row("Version", el("div", "st-plain", "Fermivie " + (a.version || "2") + (a.port ? ` · localhost:${a.port}` : ""))),
   ];
 }
 
@@ -386,7 +386,7 @@ function watchFoldersWeb(rerender) {
 // Profile: a connected folder (Chrome, Edge, Arc), a zip download, and loading either back
 function sectionProfileWeb(S, save, ctx, rerender) {
   const box = el("div", "st-profile");
-  box.append(hint("Your profile is a copy of your library and settings, including the PDFs. You can load it in another browser, on another computer or in the downloadable version of Paper Marker."));
+  box.append(hint("Your profile is a copy of your library and settings, including the PDFs. You can load it in another browser, on another computer or in the downloadable version of Fermivie."));
   const slot = el("div"); box.append(slot);
   const refresh = async () => { try { draw((await api.profile()).profile || {}); } catch (e) { slot.textContent = ""; slot.append(hint("Couldn't read the profile status: " + e.message)); } };
   const connect = async (folder, replace = false) => {
@@ -424,13 +424,13 @@ function sectionProfileWeb(S, save, ctx, rerender) {
     const folderRow = canOpenFolders()
       ? (() => {
         const actions = h("div", { class: "st-inline" },
-          h("button", { class: "btn", onclick: async () => { const f = await chooseFolder("Choose a folder for your Paper Marker profile"); if (f) connect(f); } }, P.folder ? "Change…" : "Choose Folder…"));
+          h("button", { class: "btn", onclick: async () => { const f = await chooseFolder("Choose a folder for your Fermivie profile"); if (f) connect(f); } }, P.folder ? "Change…" : "Choose Folder…"));
         if (P.folder) actions.append(
           h("button", { class: "btn", onclick: async () => { try { draw((await api.profileAct("save")).profile); ui.toast("Profile saved."); } catch (e) { ui.toast(e.message, { error: true }); } } }, "Save Now"),
           h("button", { class: "btn", onclick: async () => { try { draw((await api.profileAct("disconnect")).profile); } catch (e) { ui.toast(e.message, { error: true }); } } }, "Disconnect"));
         const state = P.folder
           ? hint((P.saving ? "Saving… " : "") + "Last saved " + when(P.lastSaved) + (P.lastError ? ". Problem: " + P.lastError : "") + (name ? "  ·  " + name : ""))
-          : hint("Not connected yet. Once connected, Paper Marker saves into the folder after every change.");
+          : hint("Not connected yet. Once connected, Fermivie saves into the folder after every change.");
         return row("Profile folder", actions, state);
       })()
       : row("Profile folder", hint("This browser can't save into folders. Use Download Profile instead."));
@@ -444,7 +444,7 @@ function sectionProfileWeb(S, save, ctx, rerender) {
         "If this is off, loading the profile downloads the PDFs again from their sources.")),
       row("Load a profile", h("div", { class: "st-inline" }, loadBtn),
         hint("Adds the papers, marks, notes and projects from a profile folder or zip that this library doesn't have. Nothing you already have is changed.")),
-      row("Git / GitHub", hint("Committing each save with git needs the downloadable version of Paper Marker.")),
+      row("Git / GitHub", hint("Committing each save with git needs the downloadable version of Fermivie.")),
     );
   };
   refresh();
@@ -482,7 +482,7 @@ function sectionAboutWeb() {
           (a.persisted === false ? " The browser may clear it if the computer runs low on space." : ""))),
     row("Contents", el("div", "st-plain num", [n(items.length, "paper", "papers"), n(pdfs, "PDF", "PDFs"), n(marks, "mark", "marks"),
       n(store.lib.projects.length, "project", "projects"), n(trashed.length, "paper in the Trash", "papers in the Trash")].join(" · "))),
-    row("Version", el("div", "st-plain", "Paper Marker " + (a.version || "2.3 (web)"))),
+    row("Version", el("div", "st-plain", "Fermivie " + (a.version || "2.3 (web)"))),
   ];
 }
 const BUILD = { general: sectionGeneral, appearance: sectionAppearance, reader: sectionReader, marking: sectionMarking,

@@ -117,7 +117,7 @@ export async function createBrowserApi(storage, opts = {}) {
     return c && c.fs && !c.fs.readOnly && isHandle(c.fs.handle) ? { handle: c.fs.handle, name: c.fs.name } : null;
   }
   function post(msg) {
-    try { return keeper.post(msg); } catch (e) { console.warn("Paper Marker:", e); return null; }
+    try { return keeper.post(msg); } catch (e) { console.warn("Fermivie:", e); return null; }
   }
   /** the answer of the service worker for a keepalive request, or null when the page must do it */
   async function viaKeeper(method, url, body) {
@@ -184,7 +184,7 @@ export async function createBrowserApi(storage, opts = {}) {
         try {
           await cacheCrop(key, name, fresh);
         } catch (e) {
-          console.warn("Paper Marker crops:", e);
+          console.warn("Fermivie crops:", e);
         }
       }
     };

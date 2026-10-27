@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paper importers for Paper Marker, a local research-paper library.
+"""Paper importers for Fermivie, a local research-paper library.
 
 Turns whatever the user pastes (arXiv id, DOI, publisher link, OpenReview /
 ACL Anthology / PubMed Central / INSPIRE / ScienceDirect link, direct PDF link,

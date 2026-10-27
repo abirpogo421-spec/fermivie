@@ -11,8 +11,8 @@ import { StoreError, bad, notFound } from "./store/index.js";
 import * as py from "./store/py.js";
 import { bodyJson } from "./backend_http.js";
 
-export const ZIP_NAME = "Paper Marker Profile.zip";
-const NO_PROFILE = "There's no Paper Marker profile (paper-marker-profile.json) there.";
+export const ZIP_NAME = "Fermivie Profile.zip";
+const NO_PROFILE = "There's no Fermivie profile (paper-marker-profile.json) there.";
 
 /** (path or "").strip().strip('"').strip("'") */
 const cleanPath = (v) => py.stripChars(py.stripChars(py.strip(py.truthy(v) ? py.str(v) : ""), '"'), "'");
@@ -52,7 +52,7 @@ export class ProfileActions {
       this.P.connect(this.ctx.lib, fs, { token });
       await this.P.statusOf(this.ctx.lib);
     } catch (e) {
-      console.warn("Paper Marker profile:", e);
+      console.warn("Fermivie profile:", e);
     }
   }
 
@@ -61,7 +61,7 @@ export class ProfileActions {
     try {
       await this.env.memory.set("profile", { handle: entry.handle, name: entry.name, libraryId: this.ctx.libraryId });
     } catch (e) {
-      console.warn("Paper Marker profile:", e);
+      console.warn("Fermivie profile:", e);
     }
   }
 
@@ -153,11 +153,11 @@ export class ProfileActions {
     const e = this.entryOf(raw);
     if (!e) throw bad("Choose a folder for your profile.");
     if (e.listOnly || !this.env.canOpenFolders()) throw bad("This browser can't save into folders. Use Download Profile instead.");
-    if (e.fs.readOnly) throw bad("Paper Marker can't save into that folder. Choose a folder it may write to.");
+    if (e.fs.readOnly) throw bad("Fermivie can't save into that folder. Choose a folder it may write to.");
     if (await this.env.isInside(L.fs, e)) throw bad("Choose a folder outside the library folder.");
     if ((await this.P.hasProfile(e.fs)) && !py.truthy(py.pg(b, "replace"))) {
       // never overwrite someone's profile by accident: the app asks whether to load it or replace it
-      throw new StoreError(409, "That folder already has a Paper Marker profile.", { preview: await this.P.preview(e.fs) });
+      throw new StoreError(409, "That folder already has a Fermivie profile.", { preview: await this.P.preview(e.fs) });
     }
     const patch = {};
     for (const k of ["includePdfs", "git", "push"]) if (typeof py.pg(b, k) === "boolean") patch[k] = b[k];

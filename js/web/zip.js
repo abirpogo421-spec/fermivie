@@ -65,7 +65,7 @@ const isAscii = (raw) => raw.every((b) => b < 0x80);
 
 const damaged = (detail, path = "", cause) =>
   new FsError(detail ? `The zip file is damaged: ${detail}` : "The zip file is damaged.", { code: "io", path, cause });
-const ZIP64_MESSAGE = "This zip uses the zip64 format (for zips over 4 GB or with more than 65,535 files), which Paper Marker can't read.";
+const ZIP64_MESSAGE = "This zip uses the zip64 format (for zips over 4 GB or with more than 65,535 files), which Fermivie can't read.";
 
 async function sliceBytes(blob, start, end) {
   return new Uint8Array(await blob.slice(start, end).arrayBuffer());
@@ -161,7 +161,7 @@ export class ZipFS extends ReadOnlyFS {
     if (end.at >= 20 && dv(end.tail).getUint32(end.at - 20, true) === SIG_Z64_LOCATOR) throw new FsError(ZIP64_MESSAGE, { code: "io" });
     if (count === MAX16 || countHere === MAX16 || cdSize === MAX32 || cdOffset === MAX32) throw new FsError(ZIP64_MESSAGE, { code: "io" });
     if (disk !== 0 || cdDisk !== 0 || countHere !== count) {
-      throw new FsError("This zip is split into several parts. Paper Marker can only open a zip that is in one piece.", { code: "io" });
+      throw new FsError("This zip is split into several parts. Fermivie can only open a zip that is in one piece.", { code: "io" });
     }
     const commentBytes = end.tail.subarray(end.at + 22, end.at + 22 + clen);
     this.comment = (() => { try { return fromUtf8(commentBytes); } catch { return cp437(commentBytes); } })();
@@ -188,7 +188,7 @@ export class ZipFS extends ReadOnlyFS {
       n++;
       if (csize === MAX32 || usize === MAX32 || offset === MAX32 || extras.has(0x0001)) throw new FsError(ZIP64_MESSAGE, { code: "io" });
       if (flags & (FLAG_ENCRYPTED | FLAG_STRONG) || method === 99) {
-        throw new FsError("This zip is password-protected. Paper Marker can't open encrypted zips.", { code: "io" });
+        throw new FsError("This zip is password-protected. Fermivie can't open encrypted zips.", { code: "io" });
       }
       let name = decodeName(raw, flags, extras);
       // Zips made on Windows (MS-DOS, NTFS or VFAT hosts) may use backslashes between folders.
@@ -226,7 +226,7 @@ export class ZipFS extends ReadOnlyFS {
     if (nlen !== e.raw.length || head.subarray(30).some((b, k) => b !== e.raw[k])) {
       throw damaged(`the two names stored for “${path}” differ.`, path);
     }
-    if (h.getUint16(6, true) & FLAG_ENCRYPTED) throw new FsError("This zip is password-protected. Paper Marker can't open encrypted zips.", { code: "io", path });
+    if (h.getUint16(6, true) & FLAG_ENCRYPTED) throw new FsError("This zip is password-protected. Fermivie can't open encrypted zips.", { code: "io", path });
     const start = e.offset + 30 + nlen + xlen, end = start + e.csize;
     if (end > this._dataEnd) throw damaged(`“${path}” runs past the end of the data.`, path);
     let bytes;

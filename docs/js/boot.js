@@ -1,7 +1,7 @@
 // Runs in <head> before the page is first drawn (a classic script, so the strict CSP needs no inline script).
 // 1. The Python server writes its saved settings into the page as a JSON data block
 //    (<script type="application/json" id="pm-settings">, see server.py _index). Read it into
-//    window.__PM_SETTINGS__; js/api.js takes its presence to mean "a Paper Marker server sent this page".
+//    window.__PM_SETTINGS__; js/api.js takes its presence to mean "a Fermivie server sent this page".
 // 2. Apply theme / density / tab layout from those settings, or from this browser's last copy, so the
 //    first paint already has the right theme.
 // 3. With no data block (GitHub Pages or any static copy) the app shell stays out of sight until the

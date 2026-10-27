@@ -5,7 +5,7 @@
 // bibEscape [_bib_escape], protectCaps [_protect_caps], protectSegment [_protect_segment],
 // bibName [_bib_name], MATH_RE [_MATH_RE], LATEX_CMD_RE [_LATEX_CMD_RE].
 // Known limit shared with the rest of the port: a float year such as 2016.0 is the number 2016 in
-// JavaScript, so it gives "2016" where Python's str(2016.0) gives "2016.0" (no Paper Marker code makes one).
+// JavaScript, so it gives "2016" where Python's str(2016.0) gives "2016.0" (no Fermivie code makes one).
 
 import {
   re, ws, cleanText, pyStr, pyTruthy, pyGet, pyIter, pyLower, pyIsUpper, pyRsplit, pyLjust, cpLen, cpSlice,

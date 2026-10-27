@@ -76,7 +76,7 @@ export function storageError(e, path = "") {
   switch (e?.name) {
     case "NotAllowedError":
     case "SecurityError":
-      return new FsError("Paper Marker no longer has permission to use this folder. Reopen it to continue.", { ...opts, code: "denied" });
+      return new FsError("Fermivie no longer has permission to use this folder. Reopen it to continue.", { ...opts, code: "denied" });
     case "QuotaExceededError":
       return new FsError("There is not enough storage space to save this.", { ...opts, code: "quota" });
     case "NoModificationAllowedError":
@@ -400,7 +400,7 @@ export class DirFS {
   static async fromHandle(handle, opts = {}) {
     if ((await permissionOf(handle, "readwrite")) === "granted") return new DirFS(handle, opts);
     if ((await permissionOf(handle, "read")) === "granted") return new DirFS(handle, { ...opts, readOnly: true });
-    throw new FsError(`Paper Marker needs permission to open “${handle.name}”.`, { code: "denied" });
+    throw new FsError(`Fermivie needs permission to open “${handle.name}”.`, { code: "denied" });
   }
 
   _w(path) {

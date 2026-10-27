@@ -1,4 +1,4 @@
-# Paper Marker
+# Fermivie
 
 A private library and PDF reader for research papers. It runs on your own computer and opens in your browser.
 You keep papers in projects, mark them up (questions, remarks, things to work through, highlights, citations, or
@@ -12,7 +12,7 @@ This copy is a blank starting point with no papers, no projects, the default mar
 
 ## Use it online
 
-Open **<https://abirpogo421-spec.github.io/paper-marker/>**. The whole app runs in your browser; nothing is
+Open **<https://abirpogo421-spec.github.io/fermivie/>**. The whole app runs in your browser; nothing is
 installed and nothing is uploaded. Your library is kept in a folder you choose, in the same format as the
 downloadable version, so one folder works with both.
 
@@ -32,24 +32,24 @@ Downloads folder (Chrome, Edge, Arc) or the downloaded file. Git saving of the p
 
 You need **Python 3.9 or newer** and a normal browser (Chrome, Safari, Firefox or Edge). Nothing else gets installed.
 
-**Get it:** on GitHub, click **Code > Download ZIP** (or `git clone https://github.com/abirpogo421-spec/paper-marker`),
+**Get it:** on GitHub, click **Code > Download ZIP** (or `git clone https://github.com/abirpogo421-spec/fermivie`),
 or use the zip you were sent.
 
 ### Mac
 
-1. Unzip the file and move the **Paper Marker** folder somewhere permanent, such as your home folder
+1. Unzip the file and move the **Fermivie** folder somewhere permanent, such as your home folder
    (in Finder: Go > Home). Your library is kept inside this folder, so don't leave it in Downloads.
-2. Double-click **`Start Paper Marker.command`**.
+2. Double-click **`Start Fermivie.command`**.
    - The first time, macOS says the file was **Not Opened** because Apple could not verify it. Click **Done**,
      open **System Settings > Privacy & Security**, scroll down and click **Open Anyway** next to
-     "Start Paper Marker.command", confirm with your password, then click **Open Anyway** again.
+     "Start Fermivie.command", confirm with your password, then click **Open Anyway** again.
      You only do this once. (On macOS 14 or older: right-click the file, choose **Open**, then **Open**.)
    - If it says the "python3" command needs the command line developer tools, click **Install** and wait for it
      to finish, or install Python from <https://www.python.org/downloads/>. Then double-click again.
 3. A Terminal window opens, and the app opens in your browser at <http://localhost:8124>.
    **Leave the Terminal window open** while you use the app. Closing it stops the app.
    - macOS may ask whether Terminal can access your Documents, Downloads or Desktop folder. Click **Allow**.
-     Paper Marker only reads PDFs there (that's how **Get journal PDF** finds what you download) and never
+     Fermivie only reads PDFs there (that's how **Get journal PDF** finds what you download) and never
      moves or changes them.
 
 ### Windows
@@ -59,8 +59,8 @@ or use the zip you were sent.
 2. Right-click the zip > **Properties**, tick **Unblock** at the bottom, and click **OK**. This stops Windows from
    warning about every file.
 3. Right-click the zip > **Extract All** and pick a permanent place that OneDrive doesn't sync, such as
-   `C:\Users\<you>`. A **Paper Marker** folder is created there.
-4. Open that folder and double-click **`Start Paper Marker.bat`**. If Windows shows "Windows protected your PC",
+   `C:\Users\<you>`. A **Fermivie** folder is created there.
+4. Open that folder and double-click **`Start Fermivie.bat`**. If Windows shows "Windows protected your PC",
    click **More info**, then **Run anyway**.
 5. A black window opens, and the app opens in your browser at <http://localhost:8124>.
    **Leave the window open** while you use the app. Closing it stops the app.
@@ -71,7 +71,7 @@ You need python3 3.9 or newer (check with `python3 --version`; install it with y
 `sudo apt install python3`). Then:
 
 ```bash
-cd "Paper Marker"
+cd "Fermivie"
 sh start.sh
 ```
 
@@ -82,7 +82,7 @@ Ctrl+C stops it. Run the same command each time.
 Double-click the same Start file again. If the app is already running, it just opens it in your browser.
 You can also bookmark <http://localhost:8124>. The bookmark works whenever the app is running.
 
-If another program is using port 8124, Paper Marker uses the next free one (8125, 8126, ...). The window tells
+If another program is using port 8124, Fermivie uses the next free one (8125, 8126, ...). The window tells
 you which address to use.
 
 ---
@@ -103,7 +103,7 @@ the window) and paste a list, a reference list copied from a paper, or a whole `
 found, can leave some out and pick a project, then they're all added together.
 
 To skip the dialog, press **⌘V** anywhere in the app to add an ID, DOI or link you've copied (titles only work in
-the Add Paper box). If the journal's PDF is behind a paywall, Paper Marker finds the paper's arXiv preprint
+the Add Paper box). If the journal's PDF is behind a paywall, Fermivie finds the paper's arXiv preprint
 and adds that instead, and tells you so. For a paper already in your library without a PDF, click **Find arXiv
 version** in its Attachments. You can also drag PDF files from your computer onto the window. The app reads the DOI or
 title inside the PDF and fills in the details. Adding a paper you already have just shows you your copy.
@@ -111,9 +111,9 @@ title inside the PDF and fills in the details. Adding a paper you already have j
 **Journal versions.** If you added the arXiv version of a paper that has since been published, select it and click
 **Get journal PDF** (in the Attachments part of the right-hand pane, below the abstract, or at the top of the
 reader). Your browser opens the journal's PDF using whatever access you already have (campus network, library
-login). Download it (⌘S, or the journal's download button) and Paper Marker spots it in your Downloads folder and
+login). Download it (⌘S, or the journal's download button) and Fermivie spots it in your Downloads folder and
 attaches it. If it hasn't appeared after a few minutes, click **Get journal PDF** again: it picks up a PDF that's
-already in Downloads. Paper Marker also checks Downloads and Desktop by itself whenever you add a paper with a DOI.
+already in Downloads. Fermivie also checks Downloads and Desktop by itself whenever you add a paper with a DOI.
 It only reads the files there and never changes them. You can choose which folders it checks in Settings.
 
 **Projects.** Click **+** next to Projects to make one. Drag papers onto a project in the sidebar, or right-click
@@ -147,11 +147,11 @@ in order (drag, or ⌥↑ / ⌥↓).
 
 ## 3. Your profile (take your library anywhere)
 
-Paper Marker has no accounts. Instead, your **profile** is a folder you choose that holds your whole library:
+Fermivie has no accounts. Instead, your **profile** is a folder you choose that holds your whole library:
 papers, marks, notes, projects, settings and a copy of every PDF. Set it up once in **Settings > Profile >
 Choose folder…**. After that it updates itself a few seconds after every change.
 
-- **On another computer, or a fresh copy of Paper Marker:** an empty library shows **Load your profile…**, or use
+- **On another computer, or a fresh copy of Fermivie:** an empty library shows **Load your profile…**, or use
   **Settings > Profile > Choose profile…**. Pick the folder and everything comes back. Papers you already have
   stay as they are.
 - **Where to keep it:** a synced drive (iCloud Drive, Dropbox, OneDrive, Google Drive), a USB stick, or a **private**
@@ -191,9 +191,9 @@ Everything you make is in the **`library`** folder inside the app folder:
 | Problem | Fix |
 | --- | --- |
 | Browser says "This site can't be reached" | The app isn't running. Double-click the Start file again. |
-| The window says "Python was not found" or "Python 3 isn't installed" (Windows) | Install Python from python.org, tick "Add python.exe to PATH", and double-click again. If you use Anaconda instead, open Anaconda Prompt, `cd` to the Paper Marker folder and run `python launch.py`. |
+| The window says "Python was not found" or "Python 3 isn't installed" (Windows) | Install Python from python.org, tick "Add python.exe to PATH", and double-click again. If you use Anaconda instead, open Anaconda Prompt, `cd` to the Fermivie folder and run `python launch.py`. |
 | "Python 3.9 or newer" message | Install a newer Python (python.org on Mac and Windows, your package manager on Linux). |
-| "Unzip the whole Paper Marker folder first" (Windows) | You opened the Start file inside the zip. Extract the zip first (step 3), then use the Start file in the new folder. |
+| "Unzip the whole Fermivie folder first" (Windows) | You opened the Start file inside the zip. Extract the zip first (step 3), then use the Start file in the new folder. |
 | A paper won't import ("blocked" / "couldn't download") | Some journals block automatic downloads. Download the PDF yourself and drag it in, or use **Get journal PDF**. |
 | Changes don't show after an update | Reload the page (⌘R / Ctrl+R). |
 | Something looks broken | Check the app's window for an error message. Your data is safe in `library/`, and `library/history/` keeps earlier copies. |

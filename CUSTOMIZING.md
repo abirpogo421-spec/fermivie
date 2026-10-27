@@ -1,4 +1,4 @@
-# Making Paper Marker your own
+# Making Fermivie your own
 
 Most changes need no code. They're covered first, then the options for starting it, then the code itself.
 
@@ -61,7 +61,7 @@ papers move to the first section (or to the second, if you delete the first). Th
 
 Set these as environment variables before starting:
 
-- **Mac / Linux** (in Terminal, in the Paper Marker folder): `PORT=8300 sh start.sh`
+- **Mac / Linux** (in Terminal, in the Fermivie folder): `PORT=8300 sh start.sh`
 - **Windows, Command Prompt** (type `cmd` in the folder's address bar): `set PORT=8300` then `py launch.py`.
   Don't put quotes around paths in `set`: `set LIBRARY_DIR=D:\My Papers`
 - **Windows, PowerShell**: `$env:PORT = "8300"; py launch.py`

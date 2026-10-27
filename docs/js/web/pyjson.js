@@ -3,7 +3,7 @@
 //
 //   pyDumps(obj, {indent = 1, ensureAscii = false, sortKeys = false, separators})
 //                       == json.dumps(obj, indent=..., ensure_ascii=..., sort_keys=..., separators=...)
-//                       Defaults are the ones Paper Marker writes files with. For Python's own defaults
+//                       Defaults are the ones Fermivie writes files with. For Python's own defaults
 //                       (json.dumps(x)) pass {indent: null, ensureAscii: true}.
 //   dumpJson(obj)       == library_store.dump_json(obj): UTF-8 bytes of pyDumps(obj) + "\n"
 //   pyLoads(text)       == json.loads(text): same values (NaN/Infinity accepted) and, on bad input, a

@@ -445,7 +445,7 @@ function renderTabs() {
   const act = list.querySelector('[aria-selected="true"]');
   if (act && act.scrollIntoView) act.scrollIntoView({ block: "nearest", inline: "nearest" });
   const cur = tabs.find((t) => tid(t) === active);
-  document.title = active === "settings" ? "Settings — Paper Marker" : cur ? tabTitle(cur) + " — Paper Marker" : "Paper Marker";
+  document.title = active === "settings" ? "Settings — Fermivie" : cur ? tabTitle(cur) + " — Fermivie" : "Fermivie";
 }
 let overflowRO = null;
 function watchOverflow(list, more) {
@@ -780,7 +780,7 @@ function registerProjectCommands() {
 function bootFailed(e) {
   const v = $("view-library");
   v.textContent = "";
-  const box = el("div", "empty", "Paper Marker couldn't open the library: " + (e && e.message ? e.message : e));
+  const box = el("div", "empty", "Fermivie couldn't open the library: " + (e && e.message ? e.message : e));
   // the browser version: a way to another library from here (no back end means no Settings page), which
   // forgets the remembered one and reloads to the setup screen, like Settings > About > Change Library…
   if (api.mode !== "server") {

@@ -1,7 +1,7 @@
 /* Browser version only: the first-run / reconnect screen (js/web/setup.js) and the boot state.
    Plain desktop look (CONTRACT.md §6): page background, one 480px column, plain buttons, small hints. */
 
-/* no Paper Marker server wrote this page: keep the empty shell out of sight until the library is open */
+/* no Fermivie server wrote this page: keep the empty shell out of sight until the library is open */
 :root[data-pm-booting] #app { visibility: hidden; }
 
 #pm-setup {
@@ -10,7 +10,8 @@
   overflow: auto; background: var(--bg); color: var(--text);
 }
 .pms { width: min(480px, calc(100vw - 32px)); margin: 0 auto; padding: max(48px, 14vh) 0 48px; }
-.pms__title { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.pms__title { margin: 0 0 6px; font: 300 20px "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.pms__wm { font-weight: 500; }
 .pms__lede { margin: 0 0 18px; color: var(--text-2); line-height: 1.45; }
 .pms__choices { display: flex; flex-direction: column; gap: 14px; }
 .pms__choice { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }

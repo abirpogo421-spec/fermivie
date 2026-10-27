@@ -107,7 +107,7 @@ async function firstVisibleName(dir) {
   for await (const x of it) { const n = Array.isArray(x) ? x[0] : x; if (!String(n).startsWith(".")) return n; }
   return null;
 }
-// A Paper Marker library: library.json, or (before its first paper) the four folders both apps make at once
+// A Fermivie library: library.json, or (before its first paper) the four folders both apps make at once
 // when they open a folder as a library (library_store.Library.__init__, js/web/store Library.init). Python's
 // Library(root).load() opens such a folder as an empty library and writes nothing, so it is one here too.
 const LIBRARY_DIRS = ["items", "projects", "history", "_deleted"];
@@ -143,14 +143,14 @@ export function firstSentence(text) {
 }
 export function problem(e, name) {
   const n = e && e.name, code = n === "FsError" ? e.code : "";
-  if (n === "NotAllowedError" || n === "SecurityError" || code === "denied") return name ? `Paper Marker wasn't allowed to open “${name}”.` : "Paper Marker wasn't allowed to open that folder.";
-  if (n === "NotFoundError" || code === "not-found") return name ? `Paper Marker can't find “${name}”, which may have been moved or deleted.` : "That folder can't be found.";
+  if (n === "NotAllowedError" || n === "SecurityError" || code === "denied") return name ? `Fermivie wasn't allowed to open “${name}”.` : "Fermivie wasn't allowed to open that folder.";
+  if (n === "NotFoundError" || code === "not-found") return name ? `Fermivie can't find “${name}”, which may have been moved or deleted.` : "That folder can't be found.";
   if (n === "QuotaExceededError" || code === "quota") return "The browser has no room left for the library.";
   // a folder that refuses writes (a read-only disk, a locked folder): fs.js says "being written right now"
   // for the browser's NoModificationAllowedError, which is wrong here, since nothing else is writing
   const cause = e && e.cause && e.cause.name;
   if (name && (n === "NoModificationAllowedError" || cause === "NoModificationAllowedError" || code === "read-only")) {
-    return `Paper Marker can't save changes in “${name}”, which may be on a read-only disk.`;
+    return `Fermivie can't save changes in “${name}”, which may be on a read-only disk.`;
   }
   const msg = e && typeof e === "object" ? e.message : e;   // an Error with no message says nothing useful
   return firstSentence(typeof msg === "string" ? msg : "");
@@ -158,7 +158,7 @@ export function problem(e, name) {
 const cancelled = (e) => e && e.name === "AbortError";
 
 /* ---------------------------------------------------------------- opening a library */
-const warn = (e) => console.warn("Paper Marker setup:", e);
+const warn = (e) => console.warn("Fermivie setup:", e);
 const remember = (slot, value) => (TEST_FS ? Promise.resolve() : memSet(slot, value).catch(warn));
 // this browser's own storage: OPFS where files can be written there, else IndexedDB (one library per site)
 async function useBrowserStorage({ kind, persist = false } = {}) {
@@ -290,7 +290,7 @@ function runScreen({ saved = null, error = "", auto = null } = {}) {
     GUARDED.forEach((t) => window.addEventListener(t, guard, true));
 
     const col = el("div", "pms");
-    const title = el("h1", "pms__title", "Paper Marker"); title.id = "pm-setup-title";
+    const title = el("h1", "pms__title"); title.append(el("span", "pms__wm", "Fermi"), "vie"); title.id = "pm-setup-title";
     root.setAttribute("role", "main"); root.setAttribute("aria-labelledby", title.id);
     const lede = el("p", "pms__lede");
     const choices = el("div", "pms__choices");
@@ -354,13 +354,13 @@ function runScreen({ saved = null, error = "", auto = null } = {}) {
       }
       const ok = await ui.confirmDialog({
         title: `Make a library folder in “${dir.name}”?`,
-        message: "This folder isn't a Paper Marker library or profile. Paper Marker can keep your library in a new folder called library inside it.",
+        message: "This folder isn't a Fermivie library or profile. Fermivie can keep your library in a new folder called library inside it.",
         ok: "Make Library Folder",
       });
       if (!ok) return;
       const existing = await subDir(dir, "library");
       if (existing && (await firstVisibleName(existing)) != null) {
-        throw new Error(`Paper Marker can't use “${dir.name}” because it already has a folder called library that isn't a Paper Marker library.`);
+        throw new Error(`Fermivie can't use “${dir.name}” because it already has a folder called library that isn't a Fermivie library.`);
       }
       const lib = existing || await dir.getDirectoryHandle("library", { create: true });
       finish(await useFolder(dir, { root: lib, sub: "library" }));
@@ -386,7 +386,7 @@ function runScreen({ saved = null, error = "", auto = null } = {}) {
 
     if (saved) {
       // 2. the remembered folder needs permission again (or couldn't be opened: the error says why)
-      lede.textContent = error ? `Paper Marker couldn't open your library in the folder “${saved.name}”.` : `Your library is in the folder “${saved.name}”. Allow Paper Marker to open it again.`;
+      lede.textContent = error ? `Fermivie couldn't open your library in the folder “${saved.name}”.` : `Your library is in the folder “${saved.name}”. Allow Fermivie to open it again.`;
       choice(`Reopen “${saved.name}”`, () => run(async () => {
         if ((await requestPermissionOf(saved.handle, "readwrite")) !== "granted") throw Object.assign(new Error("not allowed"), { name: "NotAllowedError" });
         setBusy("Opening the library…");
@@ -397,7 +397,7 @@ function runScreen({ saved = null, error = "", auto = null } = {}) {
     } else if (supportsFolders() || TEST_FS) {
       // 3. first visit, folders supported
       lede.textContent = "Choose where your library is kept.";
-      choice("Choose Folder…", chooseFolder, { primary: true, hint: "An empty folder starts a new library. A Paper Marker library or profile folder opens as it is." });
+      choice("Choose Folder…", chooseFolder, { primary: true, hint: "An empty folder starts a new library. A Fermivie library or profile folder opens as it is." });
       choice("Keep in This Browser", keepInBrowser, { hint: "Stored by this browser for this site. Download a copy from Settings > Profile now and then." });
       choice("Load Profile or Zip…", loadMenu);
     } else {

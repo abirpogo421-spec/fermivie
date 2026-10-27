@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Start Paper Marker and open it in the browser (what the "Start Paper Marker" files run).
+"""Start Fermivie and open it in the browser (what the "Start Fermivie" files run).
 
-- If Paper Marker is already running with this library, it just opens it again.
+- If Fermivie is already running with this library, it just opens it again.
 - Otherwise it starts on port 8124, or the next free port if something else is using 8124.
 - Keep the window it runs in open while you use the app; close it to stop.
 
@@ -28,7 +28,7 @@ _direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))   # never
 
 
 def _ours(port):
-    """Is a Paper Marker answering on this port?"""
+    """Is a Fermivie answering on this port?"""
     try:
         with _direct.open(f"http://127.0.0.1:{port}/api/settings", timeout=1.5) as r:
             return json.load(r).get("ok") is True
@@ -95,7 +95,7 @@ def main():
     except Exception:
         pass
     if sys.version_info < (3, 9):
-        print("Paper Marker needs Python 3.9 or newer; this is Python %d.%d." % sys.version_info[:2])
+        print("Fermivie needs Python 3.9 or newer; this is Python %d.%d." % sys.version_info[:2])
         print("Install a newer Python (python.org on Mac and Windows; your package manager on Linux) and try again.")
         return 1
     chosen = bool(os.environ.get("LIBRARY_DIR", "").strip())
@@ -116,7 +116,7 @@ def main():
     running = _read_lock(lib)
     if running and _ours(running):
         url = f"http://localhost:{running}"
-        print(f"Paper Marker is already running at {url}. Opened it in your browser.")
+        print(f"Fermivie is already running at {url}. Opened it in your browser.")
         _open(url)
         return 3
     port = None
@@ -125,10 +125,10 @@ def main():
             if not chosen and running is None and p == first:
                 # started some other way (no lock file): with the default library, assume it's this one
                 url = f"http://localhost:{p}"
-                print(f"Paper Marker is already running at {url}. Opened it in your browser.")
+                print(f"Fermivie is already running at {url}. Opened it in your browser.")
                 _open(url)
                 return 3
-            continue          # a Paper Marker with another library
+            continue          # a Fermivie with another library
         if _free(p):
             port = p
             break
@@ -141,7 +141,7 @@ def main():
     _write_lock(lib, port)
     url = f"http://localhost:{port}"
     print()
-    print(f"  Paper Marker is running at {url}")
+    print(f"  Fermivie is running at {url}")
     print(f"  Library folder: {server.store.root}")
     print()
     print("  Keep this window open while you use it. To stop, close this window.")

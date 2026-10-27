@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paper Marker: local research-paper library + PDF reader.
+"""Fermivie: local research-paper library + PDF reader.
 
 Run:  PORT=8124 LIBRARY_DIR=./library python3 server.py   (then open http://localhost:PORT)
 Stdlib only. Binds 127.0.0.1. See CONTRACT.md §3 (API) and §9 (safety).
@@ -358,7 +358,7 @@ def do_profile(m, s, b):
         has = os.path.isfile(os.path.join(folder, profile.FILE))
         if has and not b.get("replace"):
             # never overwrite someone's profile by accident: the app asks whether to load it or replace it
-            raise StoreError(409, "That folder already has a Paper Marker profile.", preview=profile.preview(folder))
+            raise StoreError(409, "That folder already has a Fermivie profile.", preview=profile.preview(folder))
         patch = {"folder": folder}
         for k in ("includePdfs", "git", "push"):
             if isinstance(b.get(k), bool):
@@ -366,7 +366,7 @@ def do_profile(m, s, b):
         store.set_settings({"profile": patch})
         return {"profile": profile.save(store)}
     if act == "choose":
-        return choose_folder(b.get("prompt") or "Choose a folder for your Paper Marker profile")
+        return choose_folder(b.get("prompt") or "Choose a folder for your Fermivie profile")
     raise not_found("Not found.")
 
 
@@ -913,7 +913,7 @@ class Handler(BaseHTTPRequestHandler):
             st = None
         # a JSON data block (no inline script, so the page's CSP can forbid inline scripts); js/boot.js reads
         # it. It is there even when settings.json can't be read ("null"): it also tells js/api.js that this
-        # page came from a Paper Marker server.
+        # page came from a Fermivie server.
         js = json.dumps(st or None, ensure_ascii=True).replace("<", "\\u003c")
         block = f'<script type="application/json" id="pm-settings">{js}</script>'.encode()
         html = html.replace(b"<!--pm-settings-->", block, 1)
@@ -951,7 +951,7 @@ def make_server(port=None, library_dir=None):
 
 def main():
     srv = make_server()
-    print(f"Paper Marker on http://localhost:{srv.server_address[1]}  (library: {store.root})", flush=True)
+    print(f"Fermivie on http://localhost:{srv.server_address[1]}  (library: {store.root})", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

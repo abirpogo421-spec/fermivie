@@ -1,4 +1,4 @@
-Paper Marker includes, unmodified, in vendor/:
+Fermivie includes, unmodified, in vendor/:
 
 - PDF.js 3.11.174 (vendor/pdf.min.js, vendor/pdf.worker.min.js, vendor/cmaps/, vendor/standard_fonts/)
   Copyright Mozilla Foundation. Apache License 2.0: see vendor/pdfjs-LICENSE

@@ -871,7 +871,7 @@ export function mountLibrary(rootEl, ctx) {
       if (!store.items().length && !store.items({ trashed: true }).length) {   // a brand-new library: offer the profile
         e.append(el("br"), h("button", { class: "btn lib-empty__btn", onclick: async () => {
           const s = await import("./settings.js");
-          const j = await api.profileAct("choose", { prompt: "Choose your Paper Marker profile folder" }).catch((err) => { ui.toast(err.message, { error: true }); return {}; });
+          const j = await api.profileAct("choose", { prompt: "Choose your Fermivie profile folder" }).catch((err) => { ui.toast(err.message, { error: true }); return {}; });
           if (j.path) s.loadProfile(j.path);
         } }, "Load your profile…"));
       }

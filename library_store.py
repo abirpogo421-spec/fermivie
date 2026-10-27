@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Persistence layer for Paper Marker (CONTRACT.md §2, §9).
+"""Persistence layer for Fermivie (CONTRACT.md §2, §9).
 
 library.json + per-attachment marks files + notes, with rolling history,
 atomic writes, revisions and a single write lock. Stdlib only.

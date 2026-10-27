@@ -152,7 +152,7 @@ export function browserEnv() {
           },
         };
       } catch (e) {
-        console.warn("Paper Marker: saves on leaving the page stay in the page:", e);
+        console.warn("Fermivie: saves on leaving the page stay in the page:", e);
         return null;
       }
     },

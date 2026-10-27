@@ -19,7 +19,7 @@
 //   statusOf(lib) -> Promise of the same, after re-reading settings.json and the folder (use for GET profile)
 //   changed(lib)   debounced save to the connected folder DELAY ms after the last change; never throws
 //   flush()        run a pending debounced save now (pagehide); resolves when saving is done
-//   exportZip(lib, {includePdfs}) -> Blob: "Paper Marker Profile/paper-marker-profile.json" + ".../pdfs/"
+//   exportZip(lib, {includePdfs}) -> Blob: "Fermivie Profile/paper-marker-profile.json" + ".../pdfs/"
 //   importSource(lib, fs, {download, connect = false}) -> load's summary. fs is any LibFS (folder, ListFS,
 //       ZipFS) or a zip File/Blob (opened with openZip): a profile is loaded with load(); a library folder (library.json, or library/library.json) is
 //       read through new Library(fs) + snapshot() and merged with the same rules; a zip or folder holding
@@ -56,7 +56,7 @@ import { writeZip, readZip } from "./zip.js";
 export const FILE = "paper-marker-profile.json";
 export const FORMAT = "paper-marker-profile";
 export const DELAY = 4000; // ms of quiet after a change before saving
-export const ZIP_FOLDER = "Paper Marker Profile";
+export const ZIP_FOLDER = "Fermivie Profile";
 
 // _state describes the connected folder (as in Python, where save() always writes there): while one is
 // connected, a save into any other folder (an export) leaves it as it is.
@@ -331,7 +331,7 @@ const wantPdfs = (p) => py.pg(p, "includePdfs", true) !== false;
 
 /** Make fs the profile folder: every later changed(lib) saves into it. Writes nothing (call save next). */
 export function connect(lib, fs, { token = "" } = {}) {
-  if (!fs || fs.readOnly) throw new StoreError(400, "Paper Marker can't save into that folder. Choose a folder it may write to.");
+  if (!fs || fs.readOnly) throw new StoreError(400, "Fermivie can't save into that folder. Choose a folder it may write to.");
   // A pending debounced save is kept: as with Python's timer, it saves into whatever folder is connected when
   // it fires (so the change reaches the new folder), and flush() still runs it.
   _conn = { fs, lib, token: String(token || "") };
@@ -590,7 +590,7 @@ async function saveUnchained(lib, profileFs, { includePdfs } = {}) {
   }
 }
 
-/** The profile as a zip: "Paper Marker Profile/paper-marker-profile.json" and ".../pdfs/<sha256>.pdf", the
+/** The profile as a zip: "Fermivie Profile/paper-marker-profile.json" and ".../pdfs/<sha256>.pdf", the
  *  files save() would write into an empty folder. */
 export async function exportZip(lib, { includePdfs } = {}) {
   const p = await profileSettings(lib);
@@ -611,7 +611,7 @@ export async function exportZip(lib, { includePdfs } = {}) {
 
 /** userprofile.read_profile: [fs, data] for a LibFS whose root holds the profile file. */
 export async function readProfile(fs) {
-  if (!(await isFile(fs, FILE))) throw new StoreError(404, `There's no Paper Marker profile (${FILE}) there.`);
+  if (!(await isFile(fs, FILE))) throw new StoreError(404, `There's no Fermivie profile (${FILE}) there.`);
   let data;
   try {
     data = parseLibJson(await readText(fs, FILE));
@@ -620,7 +620,7 @@ export async function readProfile(fs) {
     throw new StoreError(400, `That profile can't be read: ${e.message}`);
   }
   if (!py.isDict(data) || !py.eq(py.pg(data, "format"), FORMAT) || !py.isDict(py.pg(data, "library"))) {
-    throw new StoreError(400, "That file isn't a Paper Marker profile.");
+    throw new StoreError(400, "That file isn't a Fermivie profile.");
   }
   return [fs, data];
 }
@@ -838,7 +838,7 @@ export async function importSource(lib, fs, { download, connect: conn = false, t
   if (typeof Blob !== "undefined" && fs instanceof Blob) fs = await openZip(fs); // a zip file: never readZip
   const found = await findSource(fs);
   if (!found) {
-    throw new StoreError(404, `There's no Paper Marker profile (${FILE}) or library (library.json) there.`);
+    throw new StoreError(404, `There's no Fermivie profile (${FILE}) or library (library.json) there.`);
   }
   if (found.kind === "profile") return load(lib, found.fs, { connect: conn, download, token });
   // read only (nothing is created in the source), without macOS's "._name" files, which a zip made with

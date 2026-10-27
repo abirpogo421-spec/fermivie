@@ -1,7 +1,7 @@
 """Your profile: the whole library in one folder you choose, kept up to date, and loadable anywhere.
 
 A local "sign-in". Connect a folder (a synced drive, a USB stick, a git repository) and after every change
-Paper Marker writes into it:
+Fermivie writes into it:
 
   paper-marker-profile.json   every paper's details, projects, mark types, settings, all marks, notes and crops
   pdfs/<sha256>.pdf           a copy of every PDF (optional, on by default), so the profile is complete
@@ -148,7 +148,7 @@ def _git(folder, push):
         return r.returncode, (r.stdout + r.stderr).strip()
     try:
         run("add", "-A")
-        code, out = run("commit", "-q", "-m", "Paper Marker profile " + time.strftime("%Y-%m-%d %H:%M"))
+        code, out = run("commit", "-q", "-m", "Fermivie profile " + time.strftime("%Y-%m-%d %H:%M"))
         if code and "nothing to commit" not in out:
             return "Couldn't commit: " + out[-200:]
         if push:
@@ -166,13 +166,13 @@ def read_profile(path):
     p = os.path.abspath(os.path.expanduser((path or "").strip().strip('"').strip("'")))
     f = os.path.join(p, FILE) if os.path.isdir(p) else p
     if not os.path.isfile(f):
-        raise ls.StoreError(404, f"There's no Paper Marker profile ({FILE}) there.")
+        raise ls.StoreError(404, f"There's no Fermivie profile ({FILE}) there.")
     try:
         data = json.loads(_read(f))
     except (OSError, ValueError) as e:
         raise ls.StoreError(400, f"That profile can't be read: {e}")
     if not isinstance(data, dict) or data.get("format") != FORMAT or not isinstance(data.get("library"), dict):
-        raise ls.StoreError(400, "That file isn't a Paper Marker profile.")
+        raise ls.StoreError(400, "That file isn't a Fermivie profile.")
     return os.path.dirname(f), data
 
 

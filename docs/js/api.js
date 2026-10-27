@@ -12,7 +12,7 @@ function apiError(status, message, extra = {}) {
 async function req(method, url, body, opts = {}) {
   // never send /api requests before the back end is known (on GitHub Pages there is no server to ask)
   if (api.mode !== "server") {
-    const err = new Error(api.mode === "browser" ? "That isn't available in the web version." : "Paper Marker is still starting. Try again in a moment.");
+    const err = new Error(api.mode === "browser" ? "That isn't available in the web version." : "Fermivie is still starting. Try again in a moment.");
     err.status = api.mode === "browser" ? 501 : 503; err.payload = { ok: false, error: err.message }; err.conflict = false;
     throw err;
   }
@@ -28,7 +28,7 @@ async function req(method, url, body, opts = {}) {
   if (opts.keepalive) init.keepalive = true;
   let r;
   try { r = await fetch(url, init); }
-  catch (e) { throw new Error("Can't reach the Paper Marker server. Is it running?"); }
+  catch (e) { throw new Error("Can't reach the Fermivie server. Is it running?"); }
   const ct = r.headers.get("Content-Type") || "";
   if (!ct.includes("json")) {
     if (!r.ok) throw new Error(`Server error ${r.status}`);
@@ -171,7 +171,7 @@ async function pickBackend() {
     let storage = await setup.chooseStorage(), b;
     for (;;) {
       try { b = await createBrowserApi(storage); break; }
-      catch (e) { console.warn("Paper Marker couldn't open the library:", e); storage = await setup.chooseStorage({ failed: storage, error: e }); }
+      catch (e) { console.warn("Fermivie couldn't open the library:", e); storage = await setup.chooseStorage({ failed: storage, error: e }); }
     }
     const keep = api.ready;
     Object.assign(api, b);
