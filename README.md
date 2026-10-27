@@ -12,7 +12,7 @@ This copy is a blank starting point with no papers, no projects, the default mar
 
 ## Use it online
 
-Open **<https://abirpogo421-spec.github.io/fermivie/>**. The whole app runs in your browser; nothing is
+Open **<https://fermivie.vercel.app/>**. The whole app runs in your browser; nothing is
 installed and nothing is uploaded. Your library is kept in a folder you choose, in the same format as the
 downloadable version, so one folder works with both.
 
