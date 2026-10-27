@@ -6,13 +6,13 @@ import * as undoLog from "./undo.js";
 import * as order from "./order.js";
 import * as commands from "./commands.js";
 
-const TEMPLATE = "<div class=\"rd\" id=\"rd-root\">\n  <div class=\"toolbar rd-bar\">\n    <button class=\"ibtn\" id=\"rd-sideBtn\" aria-pressed=\"false\" title=\"Outline\" aria-label=\"Show outline\">SIDEIC</button>\n    <button class=\"rd-title\" id=\"rd-title\" aria-haspopup=\"listbox\" title=\"Switch paper (\u2318P)\"></button>\n    <select class=\"select rd-version\" id=\"rd-docSelect\" aria-label=\"PDF version\" hidden></select>\n    <button class=\"btn btn--small rd-journal\" id=\"rd-journalBtn\" hidden title=\"Opens the journal's PDF in your browser with your access. Download it there to add it here.\">Get journal PDF</button>\n    <span class=\"grow\"></span>\n    <div class=\"segctl\" role=\"group\" aria-label=\"Zoom\">\n      <button class=\"segctl__btn segctl__btn--icon\" id=\"rd-zoomOut\" aria-label=\"Zoom out\" title=\"Zoom out (\u2318\u2212)\">ZOUT</button>\n      <div class=\"zoomwrap\">\n        <button class=\"segctl__btn rd-zoomval\" id=\"rd-zoomVal\" aria-haspopup=\"menu\" aria-expanded=\"false\" title=\"Zoom options\">100%</button>\n        <div class=\"rd-zmenu\" id=\"rd-zoomMenu\" role=\"menu\" hidden>\n          <button role=\"menuitem\" data-fit=\"width\">Fit width <kbd>\u23180</kbd></button>\n          <button role=\"menuitem\" data-fit=\"page\">Fit page</button>\n          <hr>\n          <button role=\"menuitem\" data-z=\"0.5\">50%</button>\n          <button role=\"menuitem\" data-z=\"0.75\">75%</button>\n          <button role=\"menuitem\" data-z=\"1\">100%</button>\n          <button role=\"menuitem\" data-z=\"1.25\">125%</button>\n          <button role=\"menuitem\" data-z=\"1.5\">150%</button>\n          <button role=\"menuitem\" data-z=\"2\">200%</button>\n          <button role=\"menuitem\" data-z=\"3\">300%</button>\n          <button role=\"menuitem\" data-z=\"4\">400%</button>\n          <p class=\"rd-zmenu__tip\">Pinch or \u2318 + scroll to zoom at the cursor</p>\n        </div>\n      </div>\n      <button class=\"segctl__btn segctl__btn--icon\" id=\"rd-zoomIn\" aria-label=\"Zoom in\" title=\"Zoom in (\u2318+)\">ZIN</button>\n    </div>\n    <label class=\"pageind\" title=\"Go to page\">\n      <span class=\"sr\">Page</span>\n      <input class=\"input\" id=\"rd-pageIn\" inputmode=\"numeric\" autocomplete=\"off\" value=\"\u2013\" aria-label=\"Current page\">\n      <span id=\"rd-pageTot\" class=\"muted\">of \u2013</span>\n    </label>\n    <span class=\"grow\"></span>\n    <span class=\"rd-save\" id=\"rd-saveState\" role=\"status\" aria-live=\"polite\"></span>\n    <div class=\"segctl\" role=\"group\" aria-label=\"Tool\">\n      <button class=\"segctl__btn\" id=\"rd-toolSelect\" aria-pressed=\"true\" title=\"Select and read (Esc)\">CURSORIC Select</button>\n      <button class=\"segctl__btn\" id=\"rd-markBtn\" aria-pressed=\"false\" title=\"Annotate: select text or drag a box over an equation or figure (`)\">MARKIC Annotate</button>\n    </div>\n    <button class=\"ibtn\" id=\"rd-marksBtn\" aria-pressed=\"true\" title=\"Marks and notes (N)\" aria-label=\"Show marks and notes\">PANELIC<span id=\"rd-notesCount\" hidden></span></button>\n    <button class=\"ibtn\" id=\"rd-notesBtn\" hidden aria-hidden=\"true\" tabindex=\"-1\"></button>\n  </div>\n  <div class=\"rd-layout\">\n    <aside class=\"rd-side\" id=\"rd-side\" hidden aria-label=\"Outline\"><div class=\"rd-side__head\">Outline</div><div class=\"rd-outline\" id=\"rd-outline\"></div></aside>\n    <div class=\"viewwrap\">\n      <div class=\"banner\" id=\"rd-banner\" hidden>Select text, or drag a box over an equation or figure (hold Shift to force a box). Esc returns to Select.</div>\n      <main class=\"viewer\" id=\"rd-viewer\" tabindex=\"-1\" aria-label=\"Paper\">\n        <div class=\"pages\" id=\"rd-pages\"><div class=\"state\" id=\"rd-loadState\">Loading the paper\u2026</div></div>\n      </main>\n      <button class=\"btn rd-backbtn\" id=\"rd-backBtn\" hidden title=\"Back to where you were\">BACKIC <span id=\"rd-backLbl\">Back</span></button>\n    </div>\n    <aside class=\"panel\" id=\"rd-panel\" aria-label=\"Side panel\">\n      <div class=\"panel__head\">\n        <div class=\"tabs\" role=\"tablist\" aria-label=\"Panel\">\n          <button role=\"tab\" id=\"rd-tabMarks\" aria-selected=\"true\">Marks <span id=\"rd-tabMarksCount\" class=\"num faint\">0</span></button>\n          <button role=\"tab\" id=\"rd-tabNotes\" aria-selected=\"false\">Notes</button>\n        </div>\n        <button class=\"ibtn\" id=\"rd-panelClose\" aria-label=\"Hide side panel\" title=\"Hide (N)\">XIC</button>\n      </div>\n      <section class=\"pview\" id=\"rd-viewMarks\" role=\"tabpanel\">\n        <div class=\"chips\" id=\"rd-filters\" role=\"tablist\" aria-label=\"Filter by type\"></div>\n        <input class=\"input rd-search\" id=\"rd-search\" type=\"search\" placeholder=\"Search quotes and notes\" aria-label=\"Search marks\">\n        <div class=\"list\" id=\"rd-list\"></div>\n        <div class=\"panel__foot\"><div class=\"handoff\">Saved to <code id=\"rd-notesPath\">library/items/\u2026</code></div></div>\n      </section>\n      <section class=\"pview\" id=\"rd-viewNotes\" role=\"tabpanel\" hidden>\n        <p class=\"gn__lede\">Notes on this paper, shared by all its PDF versions. Saved as you type.</p>\n        <textarea id=\"rd-gnText\" class=\"textarea gn__text\" spellcheck=\"true\" aria-label=\"Paper notes\" placeholder=\"Anything that isn't tied to one spot in the paper.\"></textarea>\n        <div class=\"gn__bar\">\n          <button class=\"btn btn--small\" id=\"rd-gnPage\" title=\"Insert the page you're looking at\">Insert page ref</button>\n          <span class=\"grow\"></span>\n          <span class=\"gn__save\" id=\"rd-gnSave\" role=\"status\" aria-live=\"polite\"></span>\n        </div>\n        <div class=\"panel__foot\"><div class=\"handoff\">Saved to <code id=\"rd-gnPath\">library/items/\u2026/notes.md</code></div></div>\n      </section>\n    </aside>\n  </div>\n  <div class=\"composer\" id=\"rd-composer\" role=\"dialog\" aria-modal=\"false\" aria-labelledby=\"rd-cmpTitle\" hidden>\n    <div class=\"cmp__meta\">\n      <span class=\"chip\" id=\"rd-cmpTitle\">p. 1</span>\n      <span class=\"chip chip--kind\" id=\"rd-cmpKind\">text</span>\n      <span class=\"chip chip--num\" id=\"rd-cmpNum\" hidden>#1</span>\n    </div>\n    <blockquote class=\"cmp__quote\" id=\"rd-cmpQuote\"></blockquote>\n    <img class=\"cmp__crop\" id=\"rd-cmpCrop\" alt=\"Marked region\" hidden>\n    <div class=\"tpick\" role=\"radiogroup\" aria-label=\"Mark type\" id=\"rd-seg\"></div>\n    <p class=\"seg__hint\" id=\"rd-segHint\"></p>\n    <label class=\"fld\">\n      <span class=\"fld__lbl\" id=\"rd-noteLbl\">Your question</span>\n      <textarea class=\"textarea\" id=\"rd-noteIn\" rows=\"3\"></textarea>\n    </label>\n    <label class=\"fld\" id=\"rd-suggestWrap\" hidden>\n      <span class=\"fld__lbl\">Suggested wording <span class=\"opt\">optional</span></span>\n      <textarea class=\"textarea\" id=\"rd-suggestIn\" rows=\"3\" placeholder=\"Your version of this text\"></textarea>\n    </label>\n    <div class=\"cmp__actions\">\n      <button class=\"btn btn--danger\" id=\"rd-cmpDelete\" hidden>Delete</button>\n      <span class=\"grow\"></span>\n      <button class=\"btn\" id=\"rd-cmpCancel\">Cancel</button>\n      <button class=\"btn btn--primary\" id=\"rd-cmpSave\">Save <kbd>\u2318\u21b5</kbd></button>\n    </div>\n  </div>\n  <div class=\"preview\" id=\"rd-preview\" hidden aria-hidden=\"true\">\n    <div class=\"pv__img\" id=\"rd-pvImg\"></div>\n    <div class=\"pv__lbl\" id=\"rd-pvLabel\"></div>\n  </div>\n</div>\n";
+const TEMPLATE = "<div class=\"rd\" id=\"rd-root\">\n  <div class=\"toolbar rd-bar\">\n    <button class=\"ibtn\" id=\"rd-sideBtn\" aria-pressed=\"false\" title=\"Outline\" aria-label=\"Show outline\">SIDEIC</button>\n    <button class=\"rd-title\" id=\"rd-title\" aria-haspopup=\"listbox\" title=\"Switch paper (\u2318P)\"></button>\n    <select class=\"select rd-version\" id=\"rd-docSelect\" aria-label=\"PDF version\" hidden></select>\n    <button class=\"btn btn--small rd-journal\" id=\"rd-journalBtn\" hidden title=\"Opens the journal's PDF in your browser with your access. Download it there to add it here.\">Get journal PDF</button>\n    <span class=\"grow\"></span>\n    <div class=\"segctl\" role=\"group\" aria-label=\"Zoom\">\n      <button class=\"segctl__btn segctl__btn--icon\" id=\"rd-zoomOut\" aria-label=\"Zoom out\" title=\"Zoom out (\u2318\u2212)\">ZOUT</button>\n      <div class=\"zoomwrap\">\n        <button class=\"segctl__btn rd-zoomval\" id=\"rd-zoomVal\" aria-haspopup=\"menu\" aria-expanded=\"false\" title=\"Zoom options\">100%</button>\n        <div class=\"rd-zmenu\" id=\"rd-zoomMenu\" role=\"menu\" hidden>\n          <button role=\"menuitem\" data-fit=\"width\">Fit width <kbd>\u23180</kbd></button>\n          <button role=\"menuitem\" data-fit=\"page\">Fit page</button>\n          <hr>\n          <button role=\"menuitem\" data-z=\"0.5\">50%</button>\n          <button role=\"menuitem\" data-z=\"0.75\">75%</button>\n          <button role=\"menuitem\" data-z=\"1\">100%</button>\n          <button role=\"menuitem\" data-z=\"1.25\">125%</button>\n          <button role=\"menuitem\" data-z=\"1.5\">150%</button>\n          <button role=\"menuitem\" data-z=\"2\">200%</button>\n          <button role=\"menuitem\" data-z=\"3\">300%</button>\n          <button role=\"menuitem\" data-z=\"4\">400%</button>\n          <p class=\"rd-zmenu__tip\">Pinch or \u2318 + scroll to zoom at the cursor</p>\n        </div>\n      </div>\n      <button class=\"segctl__btn segctl__btn--icon\" id=\"rd-zoomIn\" aria-label=\"Zoom in\" title=\"Zoom in (\u2318+)\">ZIN</button>\n    </div>\n    <label class=\"pageind\" title=\"Go to page\">\n      <span class=\"sr\">Page</span>\n      <input class=\"input\" id=\"rd-pageIn\" inputmode=\"numeric\" autocomplete=\"off\" value=\"\u2013\" aria-label=\"Current page\">\n      <span id=\"rd-pageTot\" class=\"muted\">of \u2013</span>\n    </label>\n    <span class=\"grow\"></span>\n    <span class=\"rd-save\" id=\"rd-saveState\" role=\"status\" aria-live=\"polite\"></span>\n    <div class=\"segctl\" role=\"group\" aria-label=\"Tool\">\n      <button class=\"segctl__btn\" id=\"rd-toolSelect\" aria-pressed=\"true\" title=\"Select and read (Esc)\">CURSORIC Select</button>\n      <button class=\"segctl__btn\" id=\"rd-markBtn\" aria-pressed=\"false\" title=\"Annotate: select text or drag a box over an equation or figure (`)\">MARKIC Annotate</button>\n      <button class=\"segctl__btn\" id=\"rd-pinBtn\" aria-pressed=\"false\" title=\"Pin: drag a box over a figure or text to keep it at the side while you read (P)\">PINIC Pin</button>\n    </div>\n    <button class=\"ibtn\" id=\"rd-marksBtn\" aria-pressed=\"true\" title=\"Marks and notes (N)\" aria-label=\"Show marks and notes\">PANELIC<span id=\"rd-notesCount\" hidden></span></button>\n    <button class=\"ibtn\" id=\"rd-notesBtn\" hidden aria-hidden=\"true\" tabindex=\"-1\"></button>\n  </div>\n  <div class=\"rd-layout\">\n    <aside class=\"rd-side\" id=\"rd-side\" hidden aria-label=\"Outline\"><div class=\"rd-side__head\">Outline</div><div class=\"rd-outline\" id=\"rd-outline\"></div></aside>\n    <div class=\"viewwrap\">\n      <div class=\"banner\" id=\"rd-banner\" hidden>Select text, or drag a box over an equation or figure (hold Shift to force a box). Esc returns to Select.</div>\n      <main class=\"viewer\" id=\"rd-viewer\" tabindex=\"-1\" aria-label=\"Paper\">\n        <div class=\"pages\" id=\"rd-pages\"><div class=\"state\" id=\"rd-loadState\">Loading the paper\u2026</div></div>\n      </main>\n      <button class=\"btn rd-backbtn\" id=\"rd-backBtn\" hidden title=\"Back to where you were\">BACKIC <span id=\"rd-backLbl\">Back</span></button>\n      <aside class=\"pinboard\" id=\"rd-pins\" hidden aria-label=\"Pinned\"><div class=\"pinboard__grip\" id=\"rd-pinGrip\" title=\"Drag to resize\"></div><div class=\"pinboard__list\" id=\"rd-pinList\"></div></aside>\n    </div>\n    <aside class=\"panel\" id=\"rd-panel\" aria-label=\"Side panel\">\n      <div class=\"panel__head\">\n        <div class=\"tabs\" role=\"tablist\" aria-label=\"Panel\">\n          <button role=\"tab\" id=\"rd-tabMarks\" aria-selected=\"true\">Marks <span id=\"rd-tabMarksCount\" class=\"num faint\">0</span></button>\n          <button role=\"tab\" id=\"rd-tabNotes\" aria-selected=\"false\">Notes</button>\n        </div>\n        <button class=\"ibtn\" id=\"rd-panelClose\" aria-label=\"Hide side panel\" title=\"Hide (N)\">XIC</button>\n      </div>\n      <section class=\"pview\" id=\"rd-viewMarks\" role=\"tabpanel\">\n        <div class=\"chips\" id=\"rd-filters\" role=\"tablist\" aria-label=\"Filter by type\"></div>\n        <input class=\"input rd-search\" id=\"rd-search\" type=\"search\" placeholder=\"Search quotes and notes\" aria-label=\"Search marks\">\n        <div class=\"list\" id=\"rd-list\"></div>\n        <div class=\"panel__foot\"><div class=\"handoff\">Saved to <code id=\"rd-notesPath\">library/items/\u2026</code></div></div>\n      </section>\n      <section class=\"pview\" id=\"rd-viewNotes\" role=\"tabpanel\" hidden>\n        <p class=\"gn__lede\">Notes on this paper, shared by all its PDF versions. Saved as you type.</p>\n        <textarea id=\"rd-gnText\" class=\"textarea gn__text\" spellcheck=\"true\" aria-label=\"Paper notes\" placeholder=\"Anything that isn't tied to one spot in the paper.\"></textarea>\n        <div class=\"gn__bar\">\n          <button class=\"btn btn--small\" id=\"rd-gnPage\" title=\"Insert the page you're looking at\">Insert page ref</button>\n          <span class=\"grow\"></span>\n          <span class=\"gn__save\" id=\"rd-gnSave\" role=\"status\" aria-live=\"polite\"></span>\n        </div>\n        <div class=\"panel__foot\"><div class=\"handoff\">Saved to <code id=\"rd-gnPath\">library/items/\u2026/notes.md</code></div></div>\n      </section>\n    </aside>\n  </div>\n  <div class=\"composer\" id=\"rd-composer\" role=\"dialog\" aria-modal=\"false\" aria-labelledby=\"rd-cmpTitle\" hidden>\n    <div class=\"cmp__meta\">\n      <span class=\"chip\" id=\"rd-cmpTitle\">p. 1</span>\n      <span class=\"chip chip--kind\" id=\"rd-cmpKind\">text</span>\n      <span class=\"chip chip--num\" id=\"rd-cmpNum\" hidden>#1</span>\n    </div>\n    <blockquote class=\"cmp__quote\" id=\"rd-cmpQuote\"></blockquote>\n    <img class=\"cmp__crop\" id=\"rd-cmpCrop\" alt=\"Marked region\" hidden>\n    <div class=\"tpick\" role=\"radiogroup\" aria-label=\"Mark type\" id=\"rd-seg\"></div>\n    <p class=\"seg__hint\" id=\"rd-segHint\"></p>\n    <label class=\"fld\">\n      <span class=\"fld__lbl\" id=\"rd-noteLbl\">Your question</span>\n      <textarea class=\"textarea\" id=\"rd-noteIn\" rows=\"3\"></textarea>\n    </label>\n    <label class=\"fld\" id=\"rd-suggestWrap\" hidden>\n      <span class=\"fld__lbl\">Suggested wording <span class=\"opt\">optional</span></span>\n      <textarea class=\"textarea\" id=\"rd-suggestIn\" rows=\"3\" placeholder=\"Your version of this text\"></textarea>\n    </label>\n    <div class=\"cmp__actions\">\n      <button class=\"btn btn--danger\" id=\"rd-cmpDelete\" hidden>Delete</button>\n      <span class=\"grow\"></span>\n      <button class=\"btn\" id=\"rd-cmpCancel\">Cancel</button>\n      <button class=\"btn btn--primary\" id=\"rd-cmpSave\">Save <kbd>\u2318\u21b5</kbd></button>\n    </div>\n  </div>\n  <div class=\"preview\" id=\"rd-preview\" hidden aria-hidden=\"true\">\n    <div class=\"pv__img\" id=\"rd-pvImg\"></div>\n    <div class=\"pv__lbl\" id=\"rd-pvLabel\"></div>\n  </div>\n</div>\n";
 
 export function mountReader(root, ctx) {
   "use strict";
   const { api, store } = ctx;
   root.innerHTML = TEMPLATE;
-  for (const [ph, name] of [["SIDEIC", "sidebar-left"], ["CURSORIC", "cursor"], ["PANELIC", "sidebar-right"], ["ZOUT", "minus"], ["ZIN", "plus"], ["MARKIC", "mark"], ["QUOTEIC", "quote"], ["NOTEIC", "note"], ["BACKIC", "back"], ["XIC", "x"]]) {
+  for (const [ph, name] of [["SIDEIC", "sidebar-left"], ["CURSORIC", "cursor"], ["PANELIC", "sidebar-right"], ["ZOUT", "minus"], ["ZIN", "plus"], ["MARKIC", "mark"], ["QUOTEIC", "quote"], ["NOTEIC", "note"], ["BACKIC", "back"], ["XIC", "x"], ["PINIC", "pin"]]) {
     root.querySelectorAll("button").forEach((b) => {
       for (const n of [...b.childNodes]) if (n.nodeType === 3 && n.nodeValue.includes(ph)) {
         const [pre, post] = n.nodeValue.split(ph);
@@ -144,6 +144,7 @@ export function mountReader(root, ctx) {
     destCache.clear(); backStack.length = 0; histDepth = 0; showBack(); hidePreview(); pvCache.clear();
     pageText.clear(); hits = []; hitAt = -1; ++findSeq; finding = false; markCursor = null; hideSelTb(); if (!find.hidden) fN.textContent = "";
     loadNotes(key);
+    pins = []; renderPins();
     await loadMarks();                           // the PDF (when not kept) downloads meanwhile
     if (seq !== openSeq) return;
     renderMarksPanel();
@@ -165,6 +166,7 @@ export function mountReader(root, ctx) {
     S.pdf = D.pdf;
     S.pages = D.pages;
     buildPages();
+    loadPins();
     // loaded while the reader was hidden (the user went back to the Library): there is no layout to restore
     // the page or fit the zoom against, and nothing should render; show() does it when the reader is back
     if (visible) restoreView(); else needRestore = true;
@@ -770,7 +772,9 @@ export function mountReader(root, ctx) {
 
   /* ---------------------------------------------------------------- mark mode */
   function setMark(on) {
+    if (on && S.pin) setPin(false);
     S.mark = on;
+    if (on) $("banner").textContent = MARK_BANNER;
     hidePreview();
     $("markBtn").setAttribute("aria-pressed", String(on));
     $("toolSelect").setAttribute("aria-pressed", String(!on));
@@ -795,7 +799,8 @@ export function mountReader(root, ctx) {
     return true;
   }
   $("markBtn").onclick = () => setMark(true);
-  $("toolSelect").onclick = () => setMark(false);
+  $("toolSelect").onclick = () => { setPin(false); setMark(false); };
+  $("pinBtn").onclick = () => setPin(!S.pin);
 
   function pageOf(node) { const d = node && (node.nodeType === 1 ? node : node.parentElement); const p = d && d.closest(".page"); return p ? +p.dataset.n : 0; }
 
@@ -878,12 +883,12 @@ export function mountReader(root, ctx) {
   // box drag
   let drag = null;
   $("pages").addEventListener("pointerdown", (ev) => {
-    if (!S.mark || ev.button !== 0) return;
+    if (!(S.mark || S.pin) || ev.button !== 0) return;
     if (ev.target.closest(".badge")) return;
     const pageEl = ev.target.closest(".page"); if (!pageEl) return;
     const onText = ev.target.tagName === "SPAN" && ev.target.closest(".textLayer");
-    if (onText && !ev.shiftKey) return;            // normal text selection
-    if (draftDirty()) { nudgeComposer(); return; }
+    if (onText && !ev.shiftKey && !S.pin) return;            // normal text selection
+    if (S.mark && draftDirty()) { nudgeComposer(); return; }
     ev.preventDefault();
     window.getSelection().removeAllRanges();
     const b = pageEl.getBoundingClientRect();
@@ -904,6 +909,7 @@ export function mountReader(root, ctx) {
     if (!D.r || D.r.w < 12 || D.r.h < 10) return;
     const n = +D.pageEl.dataset.n;
     const rects = [{ p: n, x: D.r.l / D.b.width, y: D.r.t / D.b.height, w: D.r.w / D.b.width, h: D.r.h / D.b.height }];
+    if (S.pin) { addPin(rects); setPin(false); return; }
     // text that falls inside the box, for context
     const P = S.pages[n - 1];
     const inside = [...P.tl.querySelectorAll("span")].filter((s) => {
@@ -914,6 +920,84 @@ export function mountReader(root, ctx) {
   }
   $("pages").addEventListener("pointerup", endDrag);
   $("pages").addEventListener("pointercancel", () => { if (drag) { drag.d.remove(); drag = null; } });
+
+  /* ---------------------------------------------------------------- pins
+     A figure or a piece of text kept at the side while you scroll. Saved per PDF on this device. */
+  const MARK_BANNER = $("banner").textContent;
+  const PIN_BANNER = "Drag a box over a figure or text to pin it at the side. Esc returns to Select.";
+  const pinKey = () => api.lsKey("pm2:pins:" + S.doc);
+  const pinCrops = new Map();
+  let pins = [];
+  function setPin(on) {
+    if (on && S.mark) setMark(false);
+    S.pin = on;
+    hidePreview(); hideSelTb();
+    $("pinBtn").setAttribute("aria-pressed", String(on));
+    $("toolSelect").setAttribute("aria-pressed", String(!on && !S.mark));
+    if (on) $("banner").textContent = PIN_BANNER;
+    $("banner").hidden = !on && !S.mark;
+    document.body.classList.toggle("marking", on || S.mark);
+  }
+  function loadPins() {
+    pins = [];
+    try { pins = JSON.parse(localStorage.getItem(pinKey()) || "[]"); } catch (_) {}
+    renderPins();
+  }
+  function savePins() { try { localStorage.setItem(pinKey(), JSON.stringify(pins)); } catch (_) {} }
+  function addPin(rects) {
+    if (!rects.length || !S.pages.length) return;
+    pins.push({ id: Date.now().toString(36), rects });
+    savePins(); renderPins();
+    setTimeout(() => { const l = $("pinList"); l.scrollTop = l.scrollHeight; }, 0);
+  }
+  function pinSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !pageOf(sel.getRangeAt(0).startContainer)) return false;
+    const rects = normRects(sel.getRangeAt(0).getClientRects());
+    if (!rects.length) return false;
+    sel.removeAllRanges(); hideSelTb();
+    addPin(rects);
+    return true;
+  }
+  function pinCrop(pn) {
+    const k = S.doc + "/" + pn.id;
+    if (!pinCrops.has(k)) pinCrops.set(k, makeCrop(pn.rects).catch(() => null));
+    return pinCrops.get(k);
+  }
+  function renderPins() {
+    const list = $("pinList"), was = !$("pins").hidden;
+    list.textContent = "";
+    $("pins").hidden = !pins.length;
+    for (const pn of pins) {
+      const r = pn.rects[0];
+      const card = el("div", "pin"), head = el("div", "pin__head");
+      const go = el("button", "pin__page", "p. " + r.p);
+      go.title = "Go to this spot";
+      go.onclick = () => goToPage(r.p, r.y);
+      const x = el("button", "ibtn pin__x");
+      x.append(ui.icon("x")); x.title = "Unpin"; x.setAttribute("aria-label", "Unpin");
+      x.onclick = () => { pins = pins.filter((q) => q !== pn); pinCrops.delete(S.doc + "/" + pn.id); savePins(); renderPins(); };
+      head.append(go, el("span", "grow"), x);
+      const img = el("img", "pin__img"); img.alt = "Pinned from page " + r.p;
+      if (S.pages.length) pinCrop(pn).then((d) => { if (d) img.src = d; else img.replaceWith(el("p", "pin__err", "Couldn't draw this part of the page.")); });
+      card.append(head, img);
+      list.append(card);
+    }
+    if (was === !pins.length) refitSoon();
+  }
+  function refitSoon() { setTimeout(() => { if (!visible || !S.pages.length) return; if (S.fitMode) fit(S.fitMode); else scheduleRender(0); replaceComposer(); }, 0); }
+  try { const w = +localStorage.getItem("pm2:pinw"); if (w) $("pins").style.width = w + "px"; } catch (_) {}
+  $("pinGrip").addEventListener("pointerdown", (ev) => {
+    ev.preventDefault();
+    const box = $("pins"), x0 = ev.clientX, w0 = box.offsetWidth, max = box.parentElement.clientWidth * 0.6;
+    const move = (e) => { box.style.width = clamp(w0 + x0 - e.clientX, 180, max) + "px"; };
+    const up = () => {
+      document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up);
+      try { localStorage.setItem("pm2:pinw", String(box.offsetWidth)); } catch (_) {}
+      refitSoon();
+    };
+    document.addEventListener("pointermove", move); document.addEventListener("pointerup", up);
+  });
 
   /* ---------------------------------------------------------------- composer
      The composer is pinned to its mark: it follows the page when you scroll or zoom. */
@@ -1342,6 +1426,7 @@ export function mountReader(root, ctx) {
       if (typing) return false;
       if (!find.hidden) { closeFind(); return true; }   // as the bar's × does; a second Esc leaves Annotate
       if (S.mark) { setMark(false); return true; }
+      if (S.pin) { setPin(false); return true; }
       return false;
     }
     // Ctrl+1/2/3 picks the mark type while typing (Option+digit types ¡™£ on a Mac); plain 1/2/3 when not typing
@@ -1666,6 +1751,11 @@ export function mountReader(root, ctx) {
       b.onclick = () => quickMark(t.id);
       seltb.append(b);
     }
+    const pb = el("button", "seltb__b seltb__copy", "Pin");
+    pb.title = "Keep this at the side while you read (P)";
+    pb.onmousedown = (ev) => ev.preventDefault();
+    pb.onclick = () => pinSelection();
+    seltb.append(pb);
     const cp = el("button", "seltb__b seltb__copy", "Copy");
     cp.onmousedown = (ev) => ev.preventDefault();
     cp.onclick = () => { ui.copyText(clean(String(window.getSelection())).trim()).then((ok) => ui.toast(ok ? "Copied." : "Couldn't copy.")); hideSelTb(); };
@@ -1870,6 +1960,7 @@ export function mountReader(root, ctx) {
     if (ev.altKey && (ev.key === "ArrowDown" || ev.key === "ArrowUp")) { ev.preventDefault(); stepPaper(ev.key === "ArrowDown" ? 1 : -1); return true; }
     if (ev.altKey) return false;
     const k = ev.key.toLowerCase();
+    if (k === "p" && !ev.shiftKey && $("composer").hidden) { ev.preventDefault(); if (!pinSelection()) setPin(!S.pin); return true; }
     // a letter with text selected marks it
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed && String(sel).trim() && settingsR().quickKeys !== false && !ev.shiftKey) {
@@ -1893,6 +1984,8 @@ export function mountReader(root, ctx) {
     { id: "reader.next-mark", title: "Next mark", section: "Marking", keys: "J", when: here, run: () => stepMark(1) },
     { id: "reader.prev-mark", title: "Previous mark", section: "Marking", keys: "K", when: here, run: () => stepMark(-1) },
     { id: "reader.annotate", title: "Annotate on / off", section: "Marking", keys: "`", when: here, run: () => setMark(!S.mark) },
+    { id: "reader.pin", title: "Pin a figure to the side", section: "Reader", keys: "P", when: here, run: () => setPin(true) },
+    { id: "reader.unpin", title: "Unpin everything", section: "Reader", when: () => here() && pins.length > 0, run: () => { pins = []; pinCrops.clear(); savePins(); renderPins(); } },
     { id: "reader.find", title: "Find in this paper", section: "Reader", keys: "⌘F", when: here, run: () => openFind() },
     { id: "reader.page", title: "Go to page…", section: "Reader", keys: "G", when: here, run: () => { $("pageIn").focus(); $("pageIn").select(); } },
     { id: "reader.fit-width", title: "Zoom to fit width", section: "Reader", keys: "⌘0", when: here, run: () => fit("width") },
@@ -1924,6 +2017,7 @@ export function mountReader(root, ctx) {
       destCache.clear(); pvCache.clear(); backStack.length = 0; histDepth = 0; showBack(); hidePreview();
       ++findSeq; finding = false; hits = []; hitAt = -1; pageText.clear();
       $("pages").innerHTML = "";
+      pins = []; pinCrops.clear(); renderPins();
       cur = null; S.doc = null; needRestore = false;
     },
     show() {

@@ -30,7 +30,7 @@ export const cls = (id) => "mtype-" + String(id || "").replace(/[^a-z0-9-]/g, ""
 // first letter of its name not already taken (J, K, G, N and F are reader keys). Kept here so the reader
 // and the shortcuts list (Settings, ?) always agree. -> Map(letter -> type id)
 export function quickKeys() {
-  const used = new Set(["j", "k", "g", "n", "f"]), out = new Map();
+  const used = new Set(["j", "k", "g", "n", "f", "p"]), out = new Map();
   for (const t of visible()) {
     const letters = (t.name || t.id).toLowerCase().replace(/[^a-z]/g, "");
     const k = [...letters].find((c) => !used.has(c));

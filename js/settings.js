@@ -47,7 +47,7 @@ export const SHORTCUTS = [
   { head: "Reader", rows: [
     ["`", "Annotate on / off"], ["Esc", "Back to Select, close the note"], ["⌘C", "Copy selected text, or the open mark"],
     ["⌃1 … ⌃9", "Mark type while writing a note"], ["⌘↵", "Save the note"], ["⌘+ / ⌘− / ⌘0", "Zoom in / out / fit width"],
-    ["N", "Side panel"], ["⌘G / ⌘⇧G", "Next / previous find result"],
+    ["N", "Side panel"], ["P", "Pin a figure, or the selected text, to the side"], ["⌘G / ⌘⇧G", "Next / previous find result"],
   ] },
 ];
 const SECTION_OF = { "Go to": "Anywhere", App: "Anywhere", Library: "Library", Reader: "Reader", Marking: "Reader" };

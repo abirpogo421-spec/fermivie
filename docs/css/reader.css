@@ -223,3 +223,19 @@
 .rd.no-flags .badge { display: none; }
 .rd .card.is-cursor { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .rd[data-page-theme="dark"] .hlgrp, .rd[data-page-theme="dark"] .findhit { mix-blend-mode: screen; }
+
+/* pins: figures or text kept at the side while you scroll */
+.rd .pinboard { position: relative; flex: none; width: 300px; min-width: 180px; display: flex; flex-direction: column; background: var(--bg); border-left: 1px solid var(--line); }
+.rd .pinboard[hidden] { display: none; }
+.rd .pinboard__grip { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; }
+.rd .pinboard__list { flex: 1; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.rd .pin { border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; flex: none; }
+.rd .pin__head { display: flex; align-items: center; padding: 2px 2px 2px 4px; background: var(--bg); border-bottom: 1px solid var(--line-soft); }
+.rd .pin__page { border: 0; background: transparent; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--text-2); }
+.rd .pin__page:hover { background: var(--hover); color: var(--text); }
+.rd .pin__x { width: 22px; height: 22px; }
+.rd .pin__img { display: block; width: 100%; height: auto; }
+.rd .pin__err { margin: 10px; font-size: 12px; color: var(--text-3); }
+.rd[data-page-theme="dim"] .pin__img { filter: brightness(.86) sepia(.08); }
+.rd[data-page-theme="dark"] .pin__img { filter: invert(.92) hue-rotate(180deg); }
+.rd[data-page-theme="dark"] .pin { background: #1a1a1a; }
